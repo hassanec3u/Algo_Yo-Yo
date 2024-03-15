@@ -1,17 +1,20 @@
 import os
 import argparse
-import ndjson
+import json
 import time
 import signal
 from subprocess import Popen
 
 jar_name = "TwoPhase-1.1-noabort-demo-jar-with-dependencies.jar"
 
-def read_json(filename):
-    with open(filename) as f:
-        return ndjson.load(f)
+def read_ndjson(file_path):
+    with open(file_path, 'r') as file:
+        data = [json.loads(line) for line in file]
+        return data
 
-def run(RMs, TM):
+    
+def run(agents):
+
     print("--- Run server ---")
     server_process = Popen([
         "java",
@@ -25,46 +28,35 @@ def run(RMs, TM):
     # This behavior might be interesting for trace validation
     time.sleep(2)
 
-    print("--- Run TM client ---")
-    # set initialisation duration long enough to make sure all 
-    # RMs are working and already sent the prepare message
-    # (if we try to log init state shared by RMs and TM, like messages,
-    # this results in a false negative)
-    duration = 10
-    args = [
-        "java",
-        "-cp",
-        f"target/{jar_name}",
-        "org.lbee.Client",
-        "localhost", "6869", "tm", f"{TM}"]
-    for rm in RMs:
-        args += [f"{rm}"]
-    args += [f"{duration}"]
-    tm_process = Popen(args)
+  # Now you can process the config data
+    for agent_data in agents:
+        agent_id = agent_data['id']
+        sortant = agent_data['sortant']
+        entrant = agent_data['entrant']
+        # Process this agent data, e.g., create an Agent object or pass it to run()
+        agent = {'id': agent_id, 'sortant': sortant, 'entrant': entrant}
 
-    print("--- Run RM clients ---")
-    rm_processes = []
-    duration = 10
-    for rm in RMs:
+        print("--- Run Agent ---")
+        agent_processes = []
+        duration = 10
+
         args = [
             "java",
             "-cp",
             f"target/{jar_name}",
             "org.lbee.Client",
-            "localhost", "6869", "rm", f"{rm}", f"{TM}", f"{duration}"]
+            "localhost", "6869", f"{agent_id}",f"{entrant}",f"{sortant}"]
         rm_process = Popen(args)
-        # if duration is the same for all RMs the bug (in TM) has much less chances to appear
+            # if duration is the same for all RMs the bug (in TM) has much less chances to appear
         duration += 40
-        rm_processes.append(rm_process)
+        agent_processes.append(rm_process)
 
     # Wait for all clients to be finished
-    tm_process.wait()
-    for rm_process in rm_processes:
+    for rm_process in agent_processes:
         rm_process.wait()
     # terminate
     server_process.terminate()
-    tm_process.terminate()
-    for rm_process in rm_processes:
+    for rm_process in agent_processes:
         rm_process.terminate()
     # Kill server
     os.kill(server_process.pid, signal.SIGINT)
@@ -76,8 +68,8 @@ if __name__ == "__main__":
     parser.add_argument('--config', type=str, required=False,
                         default="conf.ndjson", help="Config file")
     args = parser.parse_args()
+
     # Read config and run
-    config = read_json(args.config)
-    rms = config[0]["RM"]
-    tm = config[1]["TM"][0]
-    run(rms, tm)
+    agents = read_ndjson(args.config)
+
+    run(agents)

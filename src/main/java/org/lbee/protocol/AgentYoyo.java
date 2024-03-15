@@ -174,8 +174,7 @@ public class AgentYoyo {
 
 
     public void run() {
-        System.out.println(id);
-
+        System.out.println("je suis le noeud: " + id + " voici mes entrants: "+ entrants+  "et mes sortants: "+sortants);
         while (true) {
             try {
                 phase_yo_down();
