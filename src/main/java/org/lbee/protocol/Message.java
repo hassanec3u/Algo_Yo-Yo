@@ -10,20 +10,19 @@ public class Message {
     private final long senderClock;
     private final String to;
 
-    public String getFrom() { return from; }
-    public String getContent() { return content; }
-    public String getTo() { return to; }
-    public long getSenderClock() { return senderClock; }
+    private final String type;
 
-    public Message(String from, String to, String content, long senderClock) {
+    public Message(String from, String to,  String type, String content, long senderClock) {
         this.from = from;
         this.to = to;
         this.content = content;
         this.senderClock = senderClock;
+        this.type = type;
     }
 
     /**
      * Create message from 4 strings (doesn't check length, so it can throw an out of bound exception)
+     *
      * @param components Strings used to construct the message
      */
     public Message(String[] components) {
@@ -31,10 +30,31 @@ public class Message {
         this.to = components[1];
         this.content = components[2];
         this.senderClock = Long.parseLong(components[3]);
+        this.type = components[4];
+    }
+
+    public String getFrom() {
+        return from;
+    }
+
+    public String getContent() {
+        return content;
+    }
+
+    public String getTo() {
+        return to;
+    }
+
+    public long getSenderClock() {
+        return senderClock;
+    }
+
+    public String getType() {
+        return type;
     }
 
     @Override
     public String toString() {
-        return String.join(";", new String[] { from, to, content, Long.toString(senderClock) });
+        return String.join(";", new String[]{from, to, content, Long.toString(senderClock)});
     }
 }
