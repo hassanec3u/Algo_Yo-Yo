@@ -28,9 +28,9 @@ public class Message {
     public Message(String[] components) {
         this.from = components[0];
         this.to = components[1];
-        this.content = components[2];
-        this.senderClock = Long.parseLong(components[3]);
-        this.type = components[4];
+        this.type = components[2];
+        this.content = components[3];
+        this.senderClock = Long.parseLong(components[4]);
     }
 
     public String getFrom() {
@@ -55,6 +55,6 @@ public class Message {
 
     @Override
     public String toString() {
-        return String.join(";", new String[]{from, to, content, Long.toString(senderClock)});
+        return String.join(";", new String[]{from, to, type,content, Long.toString(senderClock)});
     }
 }

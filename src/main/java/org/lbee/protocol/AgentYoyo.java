@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
+import java.util.TreeMap;
 
 public class AgentYoyo {
 
@@ -25,12 +26,12 @@ public class AgentYoyo {
 
     final NetworkManager networkManager;
 
-    public AgentYoyo(NetworkManager networkManager, String id, Set<String> entrants, Set<String> sortants) {
+    public AgentYoyo(NetworkManager networkManager, String id, Set<String> in, Set<String> out) {
         this.networkManager = networkManager;
 
         this.id = id;
-        this.entrants = entrants;
-        this.sortants = sortants;
+        this.entrants = in;
+        this.sortants = out;
         this.etat = EtatNoeud.INCONNU;
         this.aRecuToutSesEntrants = false;
         this.aRecuToutSesSortants = false;
@@ -39,15 +40,18 @@ public class AgentYoyo {
         this.compteurMsgDeSortant = 0;
         this.parents_ayant_valeur_min = new HashSet<>();
         this.mini_actuel = id;
-        mise_a_jour_etat();
     }
 
     public void ajouterEntrant(String agent){
-        entrants.add(agent);
+        if (!agent.isEmpty()) {
+            entrants.add(agent);
+        }
     }
 
     public void ajouterSortant(String agent){
-        sortants.add(agent);
+        if (!agent.isEmpty()) {
+            sortants.add(agent);
+        }
     }
 
     public String getId() {
@@ -59,6 +63,7 @@ public class AgentYoyo {
             this.etat = EtatNoeud.SOURCE;
         }
         if (this.sortants.isEmpty()) {
+
             this.etat = EtatNoeud.PUITS;
         }
         if (!this.sortants.isEmpty() && !this.entrants.isEmpty()) {
@@ -100,6 +105,8 @@ public class AgentYoyo {
                 networkManager.send(new Message(this.id, agent, TypeMessage.ID.toString(), this.id, 0));
             }
         } else {
+
+
             //cas ou on est dans un noeud interne/puits, on attend d'avoir recu tout les id des agents rentrant
             while (!this.aRecuToutSesEntrants) {
                 // Attendre que tous les messages soient reçus
@@ -120,6 +127,7 @@ public class AgentYoyo {
 
         // Attendre que tous les messages des entrants soient reçus
         while (!this.aRecuToutSesEntrants) {
+
             attendreMessage();
         }
 
@@ -174,12 +182,28 @@ public class AgentYoyo {
 
 
     public void run() {
-        System.out.println("je suis le noeud: " + id + " voici mes entrants: "+ entrants+  "et mes sortants: "+sortants);
+        mise_a_jour_etat();
+
+        //System.out.println(etat+" je suis le noeud: " + id + " voici mes entrants: "+ entrants+  "et mes sortants: "+sortants);
         while (true) {
             try {
+                mise_a_jour_etat();
+
                 phase_yo_down();
 
+                System.out.println(etat+" je suis le noeud: " + id + " voici mes entrants: "+ entrants+  "et mes sortants: "+sortants);
+
+
+
+                try {
+                    Thread.sleep(1000); // 1000 milliseconds = 1 seconde
+                } catch (InterruptedException e) {
+                    // Gérer toute interruption éventuelle
+                    e.printStackTrace();
+                }
                 phase_yo_up();
+
+
                 inverse_node();
                 mise_a_jour_etat();
 
