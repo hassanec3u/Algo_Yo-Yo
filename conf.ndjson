@@ -1,3 +1,4 @@
 {"id": 0, "sortant": [1],"entrant":[]}
-{"id": 1, "sortant": [2],"entrant":0}
-{"id": 2, "sortant": [],"entrant":1}
+{"id": 1, "sortant": [2],"entrant":[3,0]}
+{"id": 2, "sortant": [],"entrant":[1]}
+{"id": 3, "sortant": [1],"entrant":[]}

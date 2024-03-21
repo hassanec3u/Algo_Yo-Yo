@@ -31,26 +31,25 @@ public class ServerThread extends Thread {
                 // Message send
                 if (text.startsWith("s:")) {
                     // Get message data
-                    String messageData = text.substring(2, text.length());
+                    String messageData = text.substring(2);
                     // Create message object from data
                     Message message = new Message(messageData.split(";"));
                     // Put message on queue
                     networkMock.put(message);
                     writer.println("ack");
-                   // System.out.println("   Message sent: "+message);
+                    System.out.println("   Message sent: " + message);
                 }
                 // Message collect (receive)
                 else if (text.startsWith("r:")) {
-                    String dest = text.substring(2, text.length());
+                    String dest = text.substring(2);
                     // Search message
                     Message message = networkMock.take(dest);
                     // Send message to client that request it
                     if (message != null)
-                        writer.println(message.toString());
+                        writer.println(message);
                     else
                         writer.println("null");
                 }
-
             } while (!text.equals("bye"));
             // System.out.println("A client quit.");
             socket.close();
