@@ -36,6 +36,7 @@ public class AgentYoyo {
         this.etat = EtatNoeud.INCONNU;
         this.aRecuToutSesEntrants = false;
         this.aRecuToutSesSortants = false;
+        aRecuNO = false;
         this.noeud_a_inverser = new HashSet<>();
         this.compteurMsgEntrants = 0;
         this.compteurMsgDeSortant = 0;
@@ -43,7 +44,7 @@ public class AgentYoyo {
         this.mini_actuel = id;
 
         try {
-            temps =  ClockFactory.getClock(2,"file");
+            temps =  ClockFactory.getClock(2,"clock");
         } catch (ClockException e) {
             throw new RuntimeException(e);
         }
@@ -95,7 +96,7 @@ public class AgentYoyo {
         try {
             message = networkManager.receive(id,0);
         } catch (TimeOutException e) {
-            System.out.println(id + " received TIMEOUT ");
+            throw new RuntimeException(e);
         }
         if (message != null) {
             this.handleMessage(message);
@@ -119,8 +120,6 @@ public class AgentYoyo {
             while (!this.aRecuToutSesEntrants) {
                 // Attendre que tous les messages soient reçus
                 attendreMessage();
-                //System.out.println("id: "+ id + " mon etat: " + etat + " "+ aRecuToutSesEntrants + " " + aRecuToutSesSortants);
-
             }
             //les internes envoie leur id a leur sortant
             for (String agent : this.sortants) {
@@ -132,10 +131,6 @@ public class AgentYoyo {
     public void phase_yo_up() throws IOException {
         //cas ou nous somme un PUIT
         if (this.etat == EtatNoeud.PUITS) {
-
-
-          //  System.out.println("beuggggggggggggg " + aRecuToutSesEntrants);
-
 
             //envoyer YES a tous les puits ayant des parents avec l'id minimum
             for (String agent : this.parents_ayant_valeur_min) {
@@ -204,24 +199,20 @@ public class AgentYoyo {
         while (true) {
             try {
 
+                System.out.println("id: "+ id + " mon etat: " + etat + " "+ entrants + " " + sortants + " mini: " +mini_actuel);
+
 
                 phase_yo_down();
 
                 phase_yo_up();
+
                 inverse_node();
                 mise_a_jour_etat();
 
                 aRecuToutSesSortants =false;
 
                 System.out.println();
-                System.out.println("id: "+ id + " mon etat: " + etat + " "+ entrants + " " + sortants + " mini: " +mini_actuel);
 
-                try {
-                    Thread.sleep(2000); // 1000 milliseconds = 1 seconde
-                } catch (InterruptedException e) {
-                    // Gérer toute interruption éventuelle
-                    e.printStackTrace();
-                }
 
             } catch (IOException e) {
                 throw new RuntimeException(e);
@@ -230,7 +221,7 @@ public class AgentYoyo {
     }
 
 
-    private void handleMessage(Message message) throws IOException {
+    private void handleMessage(Message message) {
 
         //Verifie si le message nous appartient
         if (message.getTo().equals(id)) {
@@ -238,7 +229,6 @@ public class AgentYoyo {
 
             //cas ou on recoit un ID
             if (message.getType().equals(TypeMessage.ID.toString())) {
-
                 //si on a le meme id, on le rajoute dans l'ensemble des parents ayant la valeur min
                 if (Integer.parseInt(message.getContent()) == Integer.parseInt(mini_actuel)) {
                     parents_ayant_valeur_min.add(message.getFrom());
