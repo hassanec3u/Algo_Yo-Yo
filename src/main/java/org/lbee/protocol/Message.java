@@ -12,12 +12,15 @@ public class Message {
 
     private final String type;
 
-    public Message(String from, String to,  String type, String content, long senderClock) {
+    private final String phase;
+
+    public Message(String from, String to,  String type, String phase, String content, long senderClock) {
         this.from = from;
         this.to = to;
+        this.type = type;
+        this.phase = phase;
         this.content = content;
         this.senderClock = senderClock;
-        this.type = type;
     }
 
     /**
@@ -29,8 +32,9 @@ public class Message {
         this.from = components[0];
         this.to = components[1];
         this.type = components[2];
-        this.content = components[3];
-        this.senderClock = Long.parseLong(components[4]);
+        this.phase = components[3];
+        this.content = components[4];
+        this.senderClock = Long.parseLong(components[5]);
     }
 
     public String getFrom() {
@@ -53,8 +57,12 @@ public class Message {
         return type;
     }
 
+    public String getPhase() {
+        return phase;
+    }
+
     @Override
     public String toString() {
-        return String.join(";", new String[]{from, to, type,content, Long.toString(senderClock)});
+        return String.join(";", new String[]{from, to, type,phase,content, Long.toString(senderClock)});
     }
 }
