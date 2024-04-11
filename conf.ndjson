@@ -1,11 +1,5 @@
-{"id": 3, "entrant": [], "sortant": [14, 11, 12]}
-{"id": 4, "entrant": [], "sortant": [14, 20]}
-{"id": 5, "entrant": [], "sortant": [11, 12, 20]}
-{"id": 7, "entrant": [], "sortant": [20, 31]}
-{"id": 2, "entrant": [], "sortant": [31]}
-{"id": 11, "entrant": [3, 5], "sortant": [12]}
-{"id": 12, "entrant": [3, 11, 5], "sortant": [20]}
-{"id": 20, "entrant": [12, 4, 5, 7], "sortant": [41]}
-{"id": 14, "entrant": [3, 4], "sortant": []}
-{"id": 41, "entrant": [20], "sortant": []}
-{"id": 31, "entrant": [7, 2], "sortant": []}
+{"id": 1, "sortant": [3],"entrant":[]}
+{"id": 2, "sortant": [3],"entrant":[]}
+{"id": 3, "sortant": [4,5],"entrant":[1,2]}
+{"id": 4, "sortant": [],"entrant":[3]}
+{"id": 5, "sortant": [],"entrant":[3]}

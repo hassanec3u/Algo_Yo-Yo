@@ -3,6 +3,8 @@ package org.lbee.protocol;
 import org.lbee.instrumentation.clock.ClockException;
 import org.lbee.instrumentation.clock.ClockFactory;
 import org.lbee.instrumentation.clock.InstrumentationClock;
+import org.lbee.instrumentation.trace.TLATracer;
+import org.lbee.instrumentation.trace.VirtualField;
 import org.lbee.network.NetworkManager;
 import org.lbee.network.TimeOutException;
 
@@ -13,7 +15,7 @@ public class AgentYoyo {
 
     private String id;
 
-    private int enAvancae;
+    private Message msgEnAvance;
     private Set<String> entrants;
     private Set<String> sortants;
     private EtatNoeud etat;
@@ -25,14 +27,18 @@ public class AgentYoyo {
     private boolean aRecuNO;
     private Set<String> parents_ayant_valeur_min;
     private String mini_actuel;
-
     private String phase;
-
     final NetworkManager networkManager;
-
     private InstrumentationClock temps;
 
-    public AgentYoyo(NetworkManager networkManager, String id, Set<String> in, Set<String> out) {
+    // tracing
+    private final TLATracer tracer;
+    private final VirtualField traceMessages;
+    private final VirtualField traceInGoing;
+    private final VirtualField traceOutGoing;
+    private final VirtualField tracePhase;
+
+    public AgentYoyo(NetworkManager networkManager, String id, Set<String> in, Set<String> out, TLATracer tracer) {
         this.networkManager = networkManager;
         this.id = id;
         this.entrants = in;
@@ -52,6 +58,13 @@ public class AgentYoyo {
         } catch (ClockException e) {
             throw new RuntimeException(e);
         }
+
+        this.traceMessages = tracer.getVariableTracer("mailbox").getField(this.id);
+        ;
+        this.traceInGoing = tracer.getVariableTracer("incoming").getField(this.id);
+        this.traceOutGoing = tracer.getVariableTracer("outgoing").getField(this.id);
+        this.tracePhase = tracer.getVariableTracer("phase").getField(this.id);
+        this.tracer = tracer;
     }
 
     public void ajouterEntrant(String agent) {
@@ -95,20 +108,19 @@ public class AgentYoyo {
         noeud_a_inverser.clear();
     }
 
-    public void attendreMessage() throws IOException {
-        Message message = null;
-        try {
-            message = networkManager.receive(id, 0);
-        } catch (TimeOutException e) {
-            throw new RuntimeException(e);
-        }
-        if (message != null) {
-            this.handleMessage(message);
-        }
-    }
 
     public void phase_yo_down() throws IOException {
         phase = "down";
+
+        // trace the down phase
+        this.tracePhase.set(this.phase.toLowerCase(Locale.ROOT));
+
+        if (msgEnAvance != null) {
+            System.out.println("test_______________________________ " + msgEnAvance + " <=> " + phase);
+            handleMessage(msgEnAvance);
+            msgEnAvance = null;
+        }
+
         if (this.etat == EtatNoeud.SOURCE) {
             while (!this.aRecuToutSesEntrants) {
                 // Attendre que tous les messages soient reçus
@@ -117,8 +129,13 @@ public class AgentYoyo {
             //les sources envoient leur id aux agents sortants
             for (String agent : this.sortants) {
                 //transfere son id à chaque agent dans ses sortants
-                networkManager.send(new Message(this.id, agent, TypeMessage.ID.toString(), this.phase, this.id, temps.getNextTime()));
+                networkManager.send(new Message(this.id, agent, TypeMessage.ID.toString(), phase, this.id, temps.getNextTime()));
             }
+            //tracing
+            traceMessages.add(Map.of("phase", this.phase, "sndr", this.id, "val", mini_actuel));
+
+            tracer.log("DownSource");
+
 
         } else {
             //cas ou on est dans un noeud interne/puits, on attend d'avoir recu tout les id des agents rentrant
@@ -128,17 +145,25 @@ public class AgentYoyo {
             }
             //les internes envoie leur id a leur sortant
             for (String agent : this.sortants) {
-                networkManager.send(new Message(this.id, agent, TypeMessage.ID.toString(), this.phase, mini_actuel, ClockFactory.FILE));
+                networkManager.send(new Message(this.id, agent, TypeMessage.ID.toString(), phase, mini_actuel, ClockFactory.FILE));
             }
+            //tracing
+            traceMessages.add(Map.of("phase", this.phase, "sndr", this.id, "val", mini_actuel));
+
+            tracer.log("DownOther");
         }
         aRecuToutSesEntrants = false;
     }
 
+
     public void phase_yo_up() throws IOException {
         phase = "up";
+
+        // trace the down phase
+        this.tracePhase.set(this.phase.toLowerCase(Locale.ROOT));
+
         //cas ou nous somme un PUIT
         if (this.etat == EtatNoeud.PUITS) {
-
             //envoyer YES a tous les puits ayant des parents avec l'id minimum
             for (String agent : this.parents_ayant_valeur_min) {
                 networkManager.send(new Message(this.id, agent, TypeMessage.YES.toString(), this.phase, "-1", temps.getNextTime()));
@@ -154,7 +179,7 @@ public class AgentYoyo {
 
         //cas ou nous somme dans un noued interne
         if (this.etat == EtatNoeud.INTERNE) {
-            //on attends qu'ils recoit les messages de ses sortants sortants
+            //on attends qu'ils recoit les messages de ses sortants
             while (!aRecuToutSesSortants) {
                 attendreMessage();
             }
@@ -193,6 +218,7 @@ public class AgentYoyo {
 
         //apres avoir tout envoyé, on remet à false
         this.aRecuNO = false;
+        aRecuToutSesSortants = false;
     }
 
 
@@ -216,8 +242,6 @@ public class AgentYoyo {
                 inverse_node();
                 mise_a_jour_etat();
 
-                aRecuToutSesSortants = false;
-
                 System.out.println();
 
 
@@ -227,14 +251,27 @@ public class AgentYoyo {
         }
     }
 
+    public void attendreMessage() throws IOException {
+        Message message = null;
+        try {
+            message = networkManager.receive(id, 0);
+        } catch (TimeOutException e) {
+            throw new RuntimeException(e);
+        }
+        if (message != null) {
+            this.handleMessage(message);
+        }
+    }
 
-    private void handleMessage(Message message) {
+    private void handleMessage(Message message) throws IOException {
 
         //Verifie si le message nous appartient
         if (message.getTo().equals(id)) {
 
             if (message.getPhase().equals(this.phase)) {
-                System.out.println("   Message receive: " + message);
+
+
+                System.out.println("\u001B[32m   Message received: " + message + "\u001B[0m");
 
                 //cas ou on recoit un ID
                 if (message.getType().equals(TypeMessage.ID.toString())) {
@@ -253,16 +290,12 @@ public class AgentYoyo {
                     this.compteurMsgEntrants++;
                     if (compteurMsgEntrants == entrants.size()) {
                         this.aRecuToutSesEntrants = true;
-                        compteurMsgEntrants = enAvancae;
-                        enAvancae = 0;
+                        compteurMsgEntrants = 0;
                     }
                 }
+            } else {
+                msgEnAvance = message;
             }
-            else {
-                System.out.println("hahahahah beug---------------"+ this.etat + " " +this.phase + " <=> " + message.getPhase());
-                enAvancae++;
-            }
-
 
             //cas ou on recoit un YES
             if (message.getType().equals(TypeMessage.YES.toString())) {
@@ -285,6 +318,7 @@ public class AgentYoyo {
                 }
             }
         }
+
     }
 }
 

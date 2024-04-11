@@ -37,7 +37,7 @@ public class ServerThread extends Thread {
                     // Put message on queue
                     networkMock.put(message);
                     writer.println("ack");
-                    System.out.println("   Message sent: " + message);
+                    System.out.println("\u001B[31m   Message sent: " + message + "\u001B[0m");
                 }
                 // Message collect (receive)
                 else if (text.startsWith("r:")) {

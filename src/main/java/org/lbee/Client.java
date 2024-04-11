@@ -20,10 +20,10 @@ public class Client {
 
     public static void main(String[] args) throws IOException, ClockException {
 
-//        if (args.length < 5) {
-//            System.out.println("Missing arguments. hostname, port, type={tm, rm}, rmName, duration expected.");
-//            return;
-//        }
+      if (args.length < 5) {
+           System.out.println("Missing arguments. hostname, port, agent ID, ingoing, outgoing expected.");
+            return;
+        }
 
         // Get hostname, port,
         final String hostname = args[0];
@@ -39,14 +39,17 @@ public class Client {
         // final Configuration config = new Configuration(jsonConfig);
 
         try (Socket socket = new Socket(hostname, port)) {
-            NetworkManager networkManager = new NetworkManager(socket);
             //  TLATracer spec = TLATracer.getTracer(managerName + ".ndjson",
             //  ClockFactory.getClock(ClockFactory.FILE, "twophase.clock"));
 
+            NetworkManager networkManager = new NetworkManager(socket);
+            final AgentYoyo agent;
+            TLATracer spec = TLATracer.getTracer(agentId + ".ndjson",
+                    ClockFactory.getClock(ClockFactory.FILE,"yoyo.clock"));
 
             // Création de l'agent avec ses voisins. Ici, on doit transformer les IDs des voisins en véritables objets Agent.
             // Exemple simplifié sans la transformation réelle des voisins
-            AgentYoyo agent = new AgentYoyo(networkManager, agentId, new HashSet<>(), new HashSet<>());
+             agent = new AgentYoyo(networkManager, agentId, new HashSet<>(), new HashSet<>(),spec);
 
             for (String entrant : entrants){
                 agent.ajouterEntrant(entrant);
@@ -60,7 +63,7 @@ public class Client {
 
 
             // Send bye to server (kill the server thread)
-            // networkManager.sendRaw("bye");
+            networkManager.sendRaw("bye");
         } catch (UnknownHostException ex) {
             System.out.println("Server not found: " + ex.getMessage());
         } catch (IOException ex) {
