@@ -10,9 +10,8 @@ def read_json(filename):
 
 def get_files(config):
     files = []
-    for line in config:  
-        for v in line.values():
-            files += [f+".ndjson" for f in v]
+    for line in config:
+        files.append(str(line["id"]) + ".ndjson")
     return files
         
 def run(files, sort=False, remove_meta=False, out="trace.ndjson"):

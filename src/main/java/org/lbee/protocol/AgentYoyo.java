@@ -60,7 +60,6 @@ public class AgentYoyo {
         }
 
         this.traceMessages = tracer.getVariableTracer("mailbox").getField(this.id);
-        ;
         this.traceInGoing = tracer.getVariableTracer("incoming").getField(this.id);
         this.traceOutGoing = tracer.getVariableTracer("outgoing").getField(this.id);
         this.tracePhase = tracer.getVariableTracer("phase").getField(this.id);
@@ -175,6 +174,10 @@ public class AgentYoyo {
                     this.noeud_a_inverser.add(agent);
                 }
             }
+
+            //tracing
+            tracer.log("UpOther");
+
         }
 
         //cas ou nous somme dans un noued interne
@@ -206,6 +209,9 @@ public class AgentYoyo {
                     }
                 }
             }
+
+            //traacing
+            tracer.log("UpOther");
         }
 
         if (etat == EtatNoeud.SOURCE) {
@@ -214,6 +220,9 @@ public class AgentYoyo {
             }
             //on met à true pour demarrer la prochaine iteration
             aRecuToutSesEntrants = true;
+
+            //Tracing
+            tracer.log("UpSource");
         }
 
         //apres avoir tout envoyé, on remet à false

@@ -12,9 +12,8 @@ def read_json(filename):
 
 def get_files(config):
     files = []
-    for line in config:  
-        for v in line.values():
-            files += [f+".ndjson" for f in v]
+    for line in config:
+        files.append(str(line["id"]) + ".ndjson")
     return files
 
 parser = argparse.ArgumentParser("")
@@ -38,11 +37,8 @@ if args.compile:
     print("# Package.\n")
     subprocess.run(["mvn", "package"])
 
-# Run
 print("# Start implementation.\n")
-rms = config[0]["RM"]
-tm = config[1]["TM"][0]
-run_impl.run(rms,tm)
+run_impl.run(config)
 
 # Merge traces 
 print("# Merge traces.\n")
