@@ -46,6 +46,6 @@ trace_merger.run(files,sort=True, remove_meta=True, out="trace.ndjson")
 
 # Validate trace
 print("# Start TLA+ trace spec.\n")
-tla_trace_validation.run_tla("spec/TwoPhaseTrace.tla","trace.ndjson","conf.ndjson")
+tla_trace_validation.run_tla("spec/YoYoNoPruning.tla","trace.ndjson","conf.ndjson")
 
 # print("End pipeline.")

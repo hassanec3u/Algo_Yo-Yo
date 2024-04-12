@@ -234,6 +234,14 @@ public class AgentYoyo {
     public void run() {
         mise_a_jour_etat();
 
+        //demande au thread de s'arreter au bout de 0.5 seconde pour eviter les boucles infini
+        Timer timer = new Timer();
+        timer.schedule(new TimerTask() {
+            public void run() {
+                System.exit(0); // Arrête le programme
+            }
+        }, 500); // Démarre la tâche après 1 secondes
+
         if (etat == EtatNoeud.SOURCE) {
             aRecuToutSesEntrants = true;
         }

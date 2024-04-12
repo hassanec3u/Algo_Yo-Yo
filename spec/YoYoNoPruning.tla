@@ -239,7 +239,7 @@ NoNewSource ==
 (****************************************************************************)
 (* Stabilization condition: there is only one source node, all "down"       *)
 (* messages carry the identity of that node, all "up" messages say "yes".   *)
-(****************************************************************************)f
+(****************************************************************************)
 Stabilization ==
     /\ kind(Min(Nodes)) = "source"
     /\ \A n \in Nodes : kind(n) = "source" => n = Min(Nodes)
