@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess
 import run_impl
@@ -6,14 +7,18 @@ import tla_trace_validation
 import argparse
 import ndjson
 
-def read_json(filename):
-    with open(filename) as f:
-        return ndjson.load(f)
-
+def read_json(config_file):
+    with open(config_file, 'r') as f:
+        # Ignorer les deux premières lignes( Nodes et Edges)
+        next(f)
+        next(f)
+        # Lire le reste du fichier NDJSON
+        return [json.loads(line) for line in f]
 def get_files(config):
     files = []
     for line in config:
-        files.append(str(line["id"]) + ".ndjson")
+        if "id" in line:  # Vérifie si l'objet JSON contient une clé "id"
+            files.append(str(line["id"]) + ".ndjson")
     return files
 
 parser = argparse.ArgumentParser("")
@@ -46,6 +51,6 @@ trace_merger.run(files,sort=True, remove_meta=True, out="trace.ndjson")
 
 # Validate trace
 print("# Start TLA+ trace spec.\n")
-tla_trace_validation.run_tla("spec/YoYoNoPruning.tla","trace.ndjson","conf.ndjson")
+tla_trace_validation.run_tla("spec/YoYoNoPruningTrace.tla","trace.ndjson","conf.ndjson")
 
 # print("End pipeline.")

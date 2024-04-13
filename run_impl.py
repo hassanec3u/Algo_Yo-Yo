@@ -7,11 +7,20 @@ from subprocess import Popen
 
 jar_name = "TwoPhase-1.1-noabort-demo-jar-with-dependencies.jar"
 
-def read_ndjson(file_path):
-    with open(file_path, 'r') as file:
-        data = [json.loads(line) for line in file]
-        return data
+def get_files(config):
+    files = []
+    for line in config:
+        if "id" in line:  # Vérifie si l'objet JSON contient une clé "id"
+            files.append(str(line["id"]) + ".ndjson")
+    return files
 
+def read_ndjson(config_file):
+    with open(config_file, 'r') as f:
+        # Ignorer les deux premières lignes
+        next(f)
+        next(f)
+        # Lire le reste du fichier NDJSON
+        return [json.loads(line) for line in f]
     
 def run(agents):
 
@@ -30,6 +39,7 @@ def run(agents):
 
   # Now you can process the config data
     for agent_data in agents:
+        print(agent_data)
         agent_id = agent_data['id']
         sortant = agent_data['sortant']
         entrant = agent_data['entrant']
@@ -71,5 +81,4 @@ if __name__ == "__main__":
 
     # Read config and run
     agents = read_ndjson(args.config)
-
     run(agents)
