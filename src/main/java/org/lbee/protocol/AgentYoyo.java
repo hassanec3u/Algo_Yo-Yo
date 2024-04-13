@@ -15,7 +15,7 @@ public class AgentYoyo {
 
     private String id;
 
-    private Message msgEnAvance;
+    private HashSet<Message> msgEnAvances;
     private Set<String> entrants;
     private Set<String> sortants;
     private EtatNoeud etat;
@@ -52,6 +52,7 @@ public class AgentYoyo {
         this.compteurMsgDeSortant = 0;
         this.parents_ayant_valeur_min = new HashSet<>();
         this.mini_actuel = id;
+        this.msgEnAvances = new HashSet<>();
 
         try {
             temps = ClockFactory.getClock(2, "clock");
@@ -114,24 +115,22 @@ public class AgentYoyo {
         // trace the down phase
         this.tracePhase.set(this.phase.toLowerCase(Locale.ROOT));
 
-        if (msgEnAvance != null) {
-            System.out.println("test_______________________________ " + msgEnAvance + " <=> " + phase);
-            handleMessage(msgEnAvance);
-            msgEnAvance = null;
+        if (!msgEnAvances.isEmpty()) {
+            System.out.println("test_______________________________ " + msgEnAvances + " <=> " + phase);
+            for(Message msg : msgEnAvances) {
+                handleMessage(msg);
+            }
+            msgEnAvances.clear();
         }
 
         if (this.etat == EtatNoeud.SOURCE) {
-            while (!this.aRecuToutSesEntrants) {
-                // Attendre que tous les messages soient reçus
-                attendreMessage();
-            }
             //les sources envoient leur id aux agents sortants
             for (String agent : this.sortants) {
                 //transfere son id à chaque agent dans ses sortants
                 networkManager.send(new Message(this.id, agent, TypeMessage.ID.toString(), phase, this.id, temps.getNextTime()));
             }
             //tracing
-            traceMessages.add(Map.of("phase", this.phase, "sndr", this.id, "val", mini_actuel));
+            //traceMessages.add(Map.of("phase", this.phase, "sndr", this.id, "val", mini_actuel));
 
             tracer.log("DownSource");
 
@@ -146,9 +145,8 @@ public class AgentYoyo {
             for (String agent : this.sortants) {
                 networkManager.send(new Message(this.id, agent, TypeMessage.ID.toString(), phase, mini_actuel, ClockFactory.FILE));
             }
-            //tracing
-            traceMessages.add(Map.of("phase", this.phase, "sndr", this.id, "val", mini_actuel));
 
+            //tracing
             tracer.log("DownOther");
         }
         aRecuToutSesEntrants = false;
@@ -175,6 +173,7 @@ public class AgentYoyo {
                 }
             }
 
+
             //tracing
             tracer.log("UpOther");
 
@@ -187,7 +186,7 @@ public class AgentYoyo {
                 attendreMessage();
             }
 
-            //si on recoit un No des sortant, on le proapage dans les entrants
+            //si on recoit un No des sortants, on le proapage dans les entrants
             if (this.aRecuNO) {
                 for (String agent : this.entrants) {
                     networkManager.send(new Message(this.id, agent, TypeMessage.NO.toString(), this.phase, "-1", temps.getNextTime()));
@@ -200,12 +199,11 @@ public class AgentYoyo {
                     networkManager.send(new Message(this.id, agent, TypeMessage.YES.toString(), this.phase, "-1", temps.getNextTime()));
                 }
 
-                //Et NO aux parents n'ayant pas la valeur minimum
+                //Et NO aux parents n'ayant pas envoyé la valeur minimum
                 for (String agent : this.entrants) {
                     if (!this.parents_ayant_valeur_min.contains(agent)) {
                         networkManager.send(new Message(this.id, agent, TypeMessage.NO.toString(), this.phase, "-1", temps.getNextTime()));
                         this.noeud_a_inverser.add(agent);
-
                     }
                 }
             }
@@ -225,6 +223,9 @@ public class AgentYoyo {
             tracer.log("UpSource");
         }
 
+        //parents ayant valeur min
+        parents_ayant_valeur_min.clear();
+
         //apres avoir tout envoyé, on remet à false
         this.aRecuNO = false;
         aRecuToutSesSortants = false;
@@ -233,6 +234,7 @@ public class AgentYoyo {
 
     public void run() {
         mise_a_jour_etat();
+/*
 
         //demande au thread de s'arreter au bout de 0.5 seconde pour eviter les boucles infini
         Timer timer = new Timer();
@@ -241,6 +243,7 @@ public class AgentYoyo {
                 System.exit(0); // Arrête le programme
             }
         }, 500); // Démarre la tâche après 1 secondes
+*/
 
         if (etat == EtatNoeud.SOURCE) {
             aRecuToutSesEntrants = true;
@@ -253,9 +256,7 @@ public class AgentYoyo {
 
 
                 phase_yo_down();
-
                 phase_yo_up();
-
                 inverse_node();
                 mise_a_jour_etat();
 
@@ -311,7 +312,7 @@ public class AgentYoyo {
                     }
                 }
             } else {
-                msgEnAvance = message;
+                msgEnAvances.add(message);
             }
 
             //cas ou on recoit un YES
