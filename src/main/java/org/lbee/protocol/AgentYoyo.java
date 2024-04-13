@@ -113,7 +113,7 @@ public class AgentYoyo {
         phase = "down";
 
         // trace the down phase
-        this.tracePhase.set(this.phase.toLowerCase(Locale.ROOT));
+        //this.tracePhase.set(this.phase.toLowerCase(Locale.ROOT));
 
         if (!msgEnAvances.isEmpty()) {
             for (Message msg : msgEnAvances) {
@@ -144,7 +144,7 @@ public class AgentYoyo {
     public void phase_yo_up() throws IOException {
         phase = "up";
         // trace the down phase
-        this.tracePhase.set(this.phase.toLowerCase(Locale.ROOT));
+       // this.tracePhase.set(this.phase.toLowerCase(Locale.ROOT));
 
         //cas ou le noeud actuel est un puit
         if (this.etat == EtatNoeud.PUITS) {
