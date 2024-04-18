@@ -9,6 +9,7 @@ import org.lbee.network.NetworkManager;
 import org.lbee.network.TimeOutException;
 
 import java.io.IOException;
+import java.rmi.RemoteException;
 import java.util.*;
 
 public class AgentYoyo {
@@ -116,7 +117,7 @@ public class AgentYoyo {
 
         if (this.etat == EtatNoeud.SOURCE) {
             diffusionID(this.sortants, this.id);
-            tracer.log("DownSource");
+            tracer.log("DownSource",new Object[]{ Integer.parseInt(id)});
 
         } else {
             //cas ou on est dans un noeud interne/puits, on attend d'avoir recu tout les id des noueds entrants
@@ -126,7 +127,7 @@ public class AgentYoyo {
             }
             diffusionID(this.sortants, mini_actuel);
             //tracing
-            tracer.log("DownOther");
+            tracer.log("DownOther",new Object[]{ Integer.parseInt(id)});
         }
 
         //mise a jour variable pour la seconde ronde
@@ -156,7 +157,7 @@ public class AgentYoyo {
             inverse_node();
 
             //tracing
-            tracer.log("UpOther");
+            tracer.log("UpOther",new Object[]{ Integer.parseInt(id)});
 
         }
 
@@ -190,7 +191,7 @@ public class AgentYoyo {
 
 
             //traacing
-            tracer.log("UpOther");
+            tracer.log("UpOther",new Object[]{ Integer.parseInt(id)});
         }
 
         if (etat == EtatNoeud.SOURCE) {
@@ -200,7 +201,7 @@ public class AgentYoyo {
             inverse_node();
 
             //Tracing
-            tracer.log("UpSource");
+            tracer.log("UpSource",new Object[]{ Integer.parseInt(id)});
         }
 
         //parents ayant valeur min
@@ -216,13 +217,13 @@ public class AgentYoyo {
         mise_a_jour_etat();
 
         //demande au thread de s'arreter au bout de 0.5 seconde pour eviter les boucles infini
-        /*Timer timer = new Timer();
+        Timer timer = new Timer();
         timer.schedule(new TimerTask() {
             public void run() {
                 System.exit(0); // Arrête le programme
             }
         }, 500); // Démarre la tâche après 1 secondes
-*/
+
         while (true) {
             try {
 
@@ -334,7 +335,8 @@ public class AgentYoyo {
             } else {
                 //si c'est c'est un message en avance on stocke le pour la ronde suivante
                 System.out.println("message en avance capture --> " + message + " alors que je suis en " + this.phase + " " + entrants + " " + sortants);
-                networkManager.send(message);
+                throw new RuntimeException();
+                //networkManager.send(message);
             }
         }
     }
