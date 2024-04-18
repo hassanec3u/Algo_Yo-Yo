@@ -60,7 +60,7 @@ public class NetworkManager {
             }
             long elapsedTime = System.currentTimeMillis() - lastSendTime;
             if (elapsedTime > timeout) {
-                //throw new TimeOutException();
+                throw new TimeOutException();
             }
         }
     }

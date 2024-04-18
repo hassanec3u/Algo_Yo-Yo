@@ -12,7 +12,7 @@ import java.io.IOException;
 import java.util.*;
 
 public class AgentYoyo {
-    
+
     private String id;
     //pour stocker les messages recu de la ronde suivante
     private Set<String> entrants;
@@ -21,7 +21,7 @@ public class AgentYoyo {
     private boolean aRecuToutSesEntrants;
     private boolean aRecuToutSesSortants;
     private int compteurMsgEntrants;
-    private int compteurMsgDeSortant;
+    private int compteurMsgSortant;
     private boolean aRecuUnNO;
     private Set<String> parents_ayant_valeur_min;
     //le minimum actuel dans la phase descendante
@@ -51,7 +51,7 @@ public class AgentYoyo {
         this.aRecuUnNO = false;
         this.noeud_a_inverser = new HashSet<>();
         this.compteurMsgEntrants = 0;
-        this.compteurMsgDeSortant = 0;
+        this.compteurMsgSortant = 0;
         this.parents_ayant_valeur_min = new HashSet<>();
         this.mini_actuel = id;
 
@@ -95,6 +95,7 @@ public class AgentYoyo {
     //on inverse les nœuds à la fin de la phase -YO
     public void inverse_node() {
         for (String node : noeud_a_inverser) {
+            //System.out.println("le noued "+ id+ " a inverser les noueds :" + noeud_a_inverser);
             if (entrants.contains(node)) {
                 entrants.remove(node);
                 sortants.add(node);
@@ -112,8 +113,6 @@ public class AgentYoyo {
 
         // trace the down phase
         //this.tracePhase.set(this.phase.toLowerCase(Locale.ROOT));
-
-
 
         if (this.etat == EtatNoeud.SOURCE) {
             diffusionID(this.sortants, this.id);
@@ -137,7 +136,7 @@ public class AgentYoyo {
     public void phase_yo_up() throws IOException {
         phase = "up";
         // trace the down phase
-       // this.tracePhase.set(this.phase.toLowerCase(Locale.ROOT));
+        // this.tracePhase.set(this.phase.toLowerCase(Locale.ROOT));
 
         //cas ou le noeud actuel est un puit
         if (this.etat == EtatNoeud.PUITS) {
@@ -149,14 +148,12 @@ public class AgentYoyo {
             for (String agent : this.entrants) {
                 if (!this.parents_ayant_valeur_min.contains(agent)) {
                     noParent.add(agent);
-                    this.noeud_a_inverser.add(agent);
                 }
             }
-            inverse_node();
-
             //On envoie NO au reste
             diffusionReponse(noParent, TypeMessage.NO.toString());
             noParent.clear();
+            inverse_node();
 
             //tracing
             tracer.log("UpOther");
@@ -184,13 +181,13 @@ public class AgentYoyo {
                 for (String agent : this.entrants) {
                     if (!this.parents_ayant_valeur_min.contains(agent)) {
                         no.add(agent);
-                        this.noeud_a_inverser.add(agent);
                     }
                 }
                 diffusionReponse(no, TypeMessage.NO.toString());
                 no.clear();
             }
             inverse_node();
+
 
             //traacing
             tracer.log("UpOther");
@@ -230,7 +227,7 @@ public class AgentYoyo {
             try {
 
                 //pour l'affichagge
-                System.out.println("id: " + id + " mon etat: " + etat + " " + entrants + " " + sortants + " mini: " + mini_actuel);
+                 System.out.println("id: " + id + " mon etat: " + etat + " " + entrants + " " + sortants + " mini: " + mini_actuel);
 
 
                 phase_yo_down();
@@ -247,9 +244,10 @@ public class AgentYoyo {
     public void attendreMessage() throws IOException {
         Message message = null;
         try {
-            message = networkManager.receive(id, 0);
+            message = networkManager.receive(id, 1000);
         } catch (TimeOutException e) {
-            throw new RuntimeException(e);
+            System.out.println("#id: " + id + " mon etat: " + etat + " "+ phase +" " + compteurMsgEntrants + " " + compteurMsgSortant + " mini: " + mini_actuel);
+            System.exit(0);
         }
         if (message != null) {
             this.handleMessage(message);
@@ -260,21 +258,24 @@ public class AgentYoyo {
 
         for (String agent : destinataire) {
             //transfere son id à chaque agent dans ses sortants
-            networkManager.send(new Message(this.id, agent, TypeMessage.ID.toString(), phase, idADiffuser, temps.getNextTime()));
+            networkManager.send(new Message(this.id, agent, TypeMessage.ID.toString(), this.phase, idADiffuser, temps.getNextTime()));
         }
     }
 
     public void diffusionReponse(Set<String> destinataire, String reponse) throws IOException {
         for (String agent : destinataire) {
+            if (reponse.equals("NO")) {
+                this.noeud_a_inverser.add(agent);
+            }
             //transfere son id à chaque agent dans ses sortants
-            networkManager.send(new Message(this.id, agent, reponse, phase, "null", temps.getNextTime()));
+            networkManager.send(new Message(this.id, agent, reponse, this.phase, "null", temps.getNextTime()));
         }
     }
 
     private void handleMessage(Message message) throws IOException {
 
         //Verifie si le message nous appartient
-        if (message.getTo().equals(id)) {
+        if (message!= null && message.getTo().equals(id)) {
 
             if (message.getPhase().equals(this.phase)) {
 
@@ -296,19 +297,24 @@ public class AgentYoyo {
 
                     this.compteurMsgEntrants++;
                     if (compteurMsgEntrants == entrants.size()) {
-                        this.aRecuToutSesEntrants = true;
                         compteurMsgEntrants = 0;
+                        this.aRecuToutSesEntrants = true;
                     }
                 }
 
 
                 //cas ou on recoit un YES
                 if (message.getType().equals(TypeMessage.YES.toString())) {
-                    compteurMsgDeSortant++;
+
+                    /*if(id.equals("3")){
+                        System.out.println("---->id: " + id + " mon etat: " + etat + " " + entrants + " " + sortants + " recu: " + message.getFrom());
+                    }*/
+
+                    compteurMsgSortant++;
                     //on a recu tout les reponses des voisins sortants
-                    if (compteurMsgDeSortant == sortants.size()) {
+                    if (compteurMsgSortant == sortants.size()) {
+                        compteurMsgSortant = 0;
                         aRecuToutSesSortants = true;
-                        compteurMsgDeSortant = 0;
                     }
                 }
 
@@ -319,10 +325,10 @@ public class AgentYoyo {
                     noeud_a_inverser.add(message.getFrom());
 
                     this.aRecuUnNO = true;
-                    this.compteurMsgDeSortant++;
-                    if (compteurMsgDeSortant == sortants.size()) {
+                    this.compteurMsgSortant++;
+                    if (compteurMsgSortant == sortants.size()) {
+                        compteurMsgSortant = 0;
                         aRecuToutSesSortants = true;
-                        compteurMsgDeSortant = 0;
                     }
                 }
             } else {

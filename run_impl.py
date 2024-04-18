@@ -39,7 +39,6 @@ def run(agents):
 
   # Now you can process the config data
     for agent_data in agents:
-        print(agent_data)
         agent_id = agent_data['id']
         sortant = agent_data['sortant']
         entrant = agent_data['entrant']
