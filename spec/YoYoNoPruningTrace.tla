@@ -7,12 +7,12 @@ TraceNil == "null"
 
 (* Replace RM constant *)
 TraceNodes ==
-    {1,2,3,4,5}
+    {1, 2, 3, 4, 5}
     \*ToSet(Config[1].Nodes)
     \* ToSet(JsonTrace[1].RM)
 
 TraceEdges ==
-    { {1,3}, {2,3}, {3,4}, {3,5} }
+    {{1, 3}, {2, 3}, {3, 4}, {3, 5}}
     \* ToSet(JsonTrace[1].RM)
 (* Can be extracted from init *)
 TPDefault(varName) ==
