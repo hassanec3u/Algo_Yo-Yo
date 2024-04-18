@@ -111,6 +111,8 @@ public class AgentYoyo {
 
     public void phase_yo_down() throws IOException {
         phase = "down";
+        //enregistre le début de la phase down
+        tracer.log("StartDownPhase" , this.id);
 
         // trace the down phase
         //this.tracePhase.set(this.phase.toLowerCase(Locale.ROOT));
@@ -124,7 +126,7 @@ public class AgentYoyo {
 
         if (this.etat == EtatNoeud.SOURCE) {
             diffusionID(this.sortants, this.id);
-            tracer.log("DownSource");
+            tracer.log("DownSource",this.id);
 
         } else {
             //cas ou on est dans un noeud interne/puits, on attend d'avoir recu tout les id des noueds entrants
@@ -134,11 +136,13 @@ public class AgentYoyo {
             }
             diffusionID(this.sortants, mini_actuel);
             //tracing
-            tracer.log("DownOther");
+            tracer.log("DownOther",this.id);
         }
 
         //mise a jour variable pour la seconde ronde
         aRecuToutSesEntrants = false;
+        //enregistre la fin de la phase down
+        tracer.log("EndDownPhase" , this.id);
     }
 
     public void phase_yo_up() throws IOException {
@@ -146,8 +150,12 @@ public class AgentYoyo {
         // trace the down phase
        // this.tracePhase.set(this.phase.toLowerCase(Locale.ROOT));
 
+        // enregistre la fin de la phase up
+        tracer.log("StartUpPhase" , this.id);
+
         //cas ou le noeud actuel est un puit
         if (this.etat == EtatNoeud.PUITS) {
+            tracer.log("PUITS",this.id);
             //on envoie YES au entrants ayant envoyé val min
             diffusionReponse(this.parents_ayant_valeur_min, TypeMessage.YES.toString());
 
@@ -172,6 +180,7 @@ public class AgentYoyo {
 
         //cas ou nous somme dans un noued interne
         if (this.etat == EtatNoeud.INTERNE) {
+            tracer.log("UpInternal", this.id);
             //on attends qu'ils recoit les messages de ses sortants
             while (!aRecuToutSesSortants) {
                 attendreMessage();
@@ -210,7 +219,7 @@ public class AgentYoyo {
             inverse_node();
 
             //Tracing
-            tracer.log("UpSource");
+            tracer.log("UpSource", this.id);
         }
 
         //parents ayant valeur min
@@ -219,6 +228,7 @@ public class AgentYoyo {
         //apres avoir tout envoyé, on remet à false
         this.aRecuUnNO = false;
         aRecuToutSesSortants = false;
+        tracer.log("EndUpPhase", this.id);
     }
 
 
@@ -337,7 +347,11 @@ public class AgentYoyo {
                 System.out.println("message en avance capture --> " + message + " alors que je suis en " + this.phase + " " + entrants + " " + sortants);
                 msgEnAvances.add(message);
             }
+
+            // Enregistrement d'un message reçu
+            tracer.log("MessageReceived",this.id);
         }
+
     }
 }
 

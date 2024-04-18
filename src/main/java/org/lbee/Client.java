@@ -6,6 +6,7 @@ import org.lbee.instrumentation.clock.ClockFactory;
 import org.lbee.network.NetworkManager;
 import org.lbee.protocol.AgentYoyo;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.UnknownHostException;
@@ -38,13 +39,17 @@ public class Client {
         // System.out.println(jsonConfig);
         // final Configuration config = new Configuration(jsonConfig);
 
+
+
+
         try (Socket socket = new Socket(hostname, port)) {
             //  TLATracer spec = TLATracer.getTracer(managerName + ".ndjson",
             //  ClockFactory.getClock(ClockFactory.FILE, "twophase.clock"));
 
             NetworkManager networkManager = new NetworkManager(socket);
             final AgentYoyo agent;
-            TLATracer spec = TLATracer.getTracer(agentId + ".ndjson",
+            File traceFile = initializeTraceFile(agentId);
+            TLATracer spec = TLATracer.getTracer(traceFile.getAbsolutePath() + ".ndjson",
                     ClockFactory.getClock(ClockFactory.FILE,"yoyo.clock"));
 
             // Création de l'agent avec ses voisins. Ici, on doit transformer les IDs des voisins en véritables objets Agent.
@@ -70,6 +75,23 @@ public class Client {
             System.out.println("I/O error: " + ex.getMessage());
         }
     }
+
+    private static File initializeTraceFile(String agentId) throws IOException {
+        String directoryPath = "./traceFiles";
+        File directory = new File(directoryPath);
+        if (!directory.exists()) {
+            boolean created = directory.mkdirs();  // Attempt to create the directory
+            System.out.println("Directory created: " + created + " at " + directory.getAbsolutePath());
+        }
+
+        File traceFile = new File(directory, agentId + ".ndjson");
+        if (!traceFile.exists()) {
+            boolean created = traceFile.createNewFile();  // Attempt to create the file
+            System.out.println("Trace file created: " + created + " at " + traceFile.getAbsolutePath());
+        }
+        return traceFile;
+    }
+
 
     public static String[] conversionEnString(String str){
         // Supprimer les crochets et les espaces

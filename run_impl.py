@@ -21,7 +21,7 @@ def read_ndjson(config_file):
         next(f)
         # Lire le reste du fichier NDJSON
         return [json.loads(line) for line in f]
-    
+
 def run(agents):
 
     print("--- Run server ---")
@@ -32,12 +32,12 @@ def run(agents):
         "org.lbee.network.Server",
         "6869", "unordered"])
 
-    # Wait the server to run, if not some manager might start 
+    # Wait the server to run, if not some manager might start
     # running before the server, leading to an error
     # This behavior might be interesting for trace validation
     time.sleep(2)
 
-  # Now you can process the config data
+    # Now you can process the config data
     for agent_data in agents:
         print(agent_data)
         agent_id = agent_data['id']
@@ -57,7 +57,7 @@ def run(agents):
             "org.lbee.Client",
             "localhost", "6869", f"{agent_id}",f"{entrant}",f"{sortant}"]
         rm_process = Popen(args)
-            # if duration is the same for all RMs the bug (in TM) has much less chances to appear
+        # if duration is the same for all RMs the bug (in TM) has much less chances to appear
         duration += 40
         agent_processes.append(rm_process)
 
