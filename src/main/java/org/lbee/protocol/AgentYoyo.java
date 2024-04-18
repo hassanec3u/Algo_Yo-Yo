@@ -15,7 +15,6 @@ public class AgentYoyo {
     
     private String id;
     //pour stocker les messages recu de la ronde suivante
-    private HashSet<Message> msgEnAvances;
     private Set<String> entrants;
     private Set<String> sortants;
     private EtatNoeud etat;
@@ -55,7 +54,6 @@ public class AgentYoyo {
         this.compteurMsgDeSortant = 0;
         this.parents_ayant_valeur_min = new HashSet<>();
         this.mini_actuel = id;
-        this.msgEnAvances = new HashSet<>();
 
         try {
             temps = ClockFactory.getClock(2, "clock");
@@ -115,12 +113,7 @@ public class AgentYoyo {
         // trace the down phase
         //this.tracePhase.set(this.phase.toLowerCase(Locale.ROOT));
 
-        if (!msgEnAvances.isEmpty()) {
-            for (Message msg : msgEnAvances) {
-                handleMessage(msg);
-            }
-            msgEnAvances.clear();
-        }
+
 
         if (this.etat == EtatNoeud.SOURCE) {
             diffusionID(this.sortants, this.id);
@@ -226,13 +219,13 @@ public class AgentYoyo {
         mise_a_jour_etat();
 
         //demande au thread de s'arreter au bout de 0.5 seconde pour eviter les boucles infini
-        Timer timer = new Timer();
+        /*Timer timer = new Timer();
         timer.schedule(new TimerTask() {
             public void run() {
                 System.exit(0); // Arrête le programme
             }
         }, 500); // Démarre la tâche après 1 secondes
-
+*/
         while (true) {
             try {
 
@@ -335,7 +328,7 @@ public class AgentYoyo {
             } else {
                 //si c'est c'est un message en avance on stocke le pour la ronde suivante
                 System.out.println("message en avance capture --> " + message + " alors que je suis en " + this.phase + " " + entrants + " " + sortants);
-                msgEnAvances.add(message);
+                networkManager.send(message);
             }
         }
     }
