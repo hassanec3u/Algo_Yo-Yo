@@ -9,7 +9,6 @@ import org.lbee.network.NetworkManager;
 import org.lbee.network.TimeOutException;
 
 import java.io.IOException;
-import java.rmi.RemoteException;
 import java.util.*;
 
 public class AgentYoyo {
@@ -111,13 +110,15 @@ public class AgentYoyo {
 
     public void phase_yo_down() throws IOException {
         phase = "down";
+        tracePhase.set(new Object[]{phase});
+
 
         // trace the down phase
         //this.tracePhase.set(this.phase.toLowerCase(Locale.ROOT));
 
         if (this.etat == EtatNoeud.SOURCE) {
             diffusionID(this.sortants, this.id);
-            tracer.log("DownSource",new Object[]{ Integer.parseInt(id)});
+            tracer.log("DownSource", new Object[]{Integer.parseInt(id)});
 
         } else {
             //cas ou on est dans un noeud interne/puits, on attend d'avoir recu tout les id des noueds entrants
@@ -127,7 +128,7 @@ public class AgentYoyo {
             }
             diffusionID(this.sortants, mini_actuel);
             //tracing
-            tracer.log("DownOther",new Object[]{ Integer.parseInt(id)});
+            tracer.log("DownOther", new Object[]{Integer.parseInt(id)});
         }
 
         //mise a jour variable pour la seconde ronde
@@ -136,6 +137,7 @@ public class AgentYoyo {
 
     public void phase_yo_up() throws IOException {
         phase = "up";
+        tracePhase.set(new Object[]{phase});
         // trace the down phase
         // this.tracePhase.set(this.phase.toLowerCase(Locale.ROOT));
 
@@ -157,7 +159,7 @@ public class AgentYoyo {
             inverse_node();
 
             //tracing
-            tracer.log("UpOther",new Object[]{ Integer.parseInt(id)});
+            tracer.log("UpOther", new Object[]{Integer.parseInt(id)});
 
         }
 
@@ -191,7 +193,7 @@ public class AgentYoyo {
 
 
             //traacing
-            tracer.log("UpOther",new Object[]{ Integer.parseInt(id)});
+            tracer.log("UpOther", new Object[]{Integer.parseInt(id)});
         }
 
         if (etat == EtatNoeud.SOURCE) {
@@ -201,7 +203,7 @@ public class AgentYoyo {
             inverse_node();
 
             //Tracing
-            tracer.log("UpSource",new Object[]{ Integer.parseInt(id)});
+            tracer.log("UpSource", new Object[]{Integer.parseInt(id)});
         }
 
         //parents ayant valeur min
@@ -217,18 +219,18 @@ public class AgentYoyo {
         mise_a_jour_etat();
 
         //demande au thread de s'arreter au bout de 0.5 seconde pour eviter les boucles infini
-        Timer timer = new Timer();
+        /*Timer timer = new Timer();
         timer.schedule(new TimerTask() {
             public void run() {
                 System.exit(0); // Arrête le programme
             }
-        }, 500); // Démarre la tâche après 1 secondes
+        }, 200); // Démarre la tâche après 1 secondes*/
 
         while (true) {
             try {
 
                 //pour l'affichagge
-                 System.out.println("id: " + id + " mon etat: " + etat + " " + entrants + " " + sortants + " mini: " + mini_actuel);
+                System.out.println("id: " + id + " mon etat: " + etat + " " + entrants + " " + sortants + " mini: " + mini_actuel);
 
 
                 phase_yo_down();
@@ -247,11 +249,13 @@ public class AgentYoyo {
         try {
             message = networkManager.receive(id, 1000);
         } catch (TimeOutException e) {
-            System.out.println("#id: " + id + " mon etat: " + etat + " "+ phase +" " + compteurMsgEntrants + " " + compteurMsgSortant + " mini: " + mini_actuel);
-            System.exit(0);
+            System.out.printf("timeOut");
         }
         if (message != null) {
             this.handleMessage(message);
+        }
+        else {
+            System.out.printf("message est nul, beug");
         }
     }
 
@@ -269,14 +273,14 @@ public class AgentYoyo {
                 this.noeud_a_inverser.add(agent);
             }
             //transfere son id à chaque agent dans ses sortants
-            networkManager.send(new Message(this.id, agent, reponse, this.phase, "null", temps.getNextTime()));
+            networkManager.send(new Message(this.id, agent, reponse, this.phase, "NoIdToSend", temps.getNextTime()));
         }
     }
 
     private void handleMessage(Message message) throws IOException {
 
         //Verifie si le message nous appartient
-        if (message!= null && message.getTo().equals(id)) {
+        if (message != null && message.getTo().equals(id)) {
 
             if (message.getPhase().equals(this.phase)) {
 
@@ -335,8 +339,7 @@ public class AgentYoyo {
             } else {
                 //si c'est c'est un message en avance on stocke le pour la ronde suivante
                 System.out.println("message en avance capture --> " + message + " alors que je suis en " + this.phase + " " + entrants + " " + sortants);
-                throw new RuntimeException();
-                //networkManager.send(message);
+                networkManager.send(message);
             }
         }
     }
