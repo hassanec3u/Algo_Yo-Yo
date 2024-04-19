@@ -29,33 +29,29 @@ public class ServerThread extends Thread {
             do {
                 text = reader.readLine();
 
-                if (text != null) {
-
-
-                    // Message send
-                    if (text.startsWith("s:")) {
-                        // Get message data
-                        String messageData = text.substring(2);
-                        // Create message object from data
-                        Message message = new Message(messageData.split(";"));
-                        // Put message on queue
-                        networkMock.put(message);
-                        writer.println("ack");
-                        System.out.println("\u001B[31m   Message sent: " + message + "\u001B[0m");
-                    }
-                    // Message collect (receive)
-                    else if (text.startsWith("r:")) {
-                        String dest = text.substring(2);
-                        // Search message
-                        Message message = networkMock.take(dest);
-                        // Send message to client that request it
-                        if (message != null)
-                            writer.println(message);
-                        else
-                            writer.println("null");
-                    }
+                // Message send
+                if (text.startsWith("s:")) {
+                    // Get message data
+                    String messageData = text.substring(2);
+                    // Create message object from data
+                    Message message = new Message(messageData.split(";"));
+                    // Put message on queue
+                    networkMock.put(message);
+                    writer.println("ack");
+                    System.out.println("\u001B[31m   Message sent: " + message + "\u001B[0m");
                 }
-            } while (text != null && !text.equals("bye"));
+                // Message collect (receive)
+                else if (text.startsWith("r:")) {
+                    String dest = text.substring(2);
+                    // Search message
+                    Message message = networkMock.take(dest);
+                    // Send message to client that request it
+                    if (message != null)
+                        writer.println(message);
+                    else
+                        writer.println("null");
+                }
+            } while (!text.equals("bye"));
             // System.out.println("A client quit.");
             socket.close();
         } catch (IOException ex) {
