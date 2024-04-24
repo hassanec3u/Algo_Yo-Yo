@@ -1,13 +1,10 @@
-import json
 import os
 import subprocess
 import run_impl
 import trace_merger
 import tla_trace_validation
 import argparse
-import ndjson
 import json
-import re
 
 
 # fonction pour mettre à jour TLA+ selon le fichier conf.ndjson
@@ -15,6 +12,7 @@ def update_tla_file(config_path, tla_path):
     # Lire le fichier conf.ndjson
     with open(config_path, 'r') as file:
         json_lines = file.readlines()
+
     # Extraire les noeuds et les arêtes
     nodes = set()
     edges = set()
@@ -29,23 +27,39 @@ def update_tla_file(config_path, tla_path):
     nodes_str = "{" + ", ".join(map(str, sorted(nodes))) + "}"
     edges_str = "{" + ", ".join(["{" + str(src) + ", " + str(dest) + "}" for src, dest in sorted(edges)]) + "}"
 
-    # Lire le contenu existant de trace.tla
+    # Première passe pour réinitialiser les valeurs
+    reset_contents = []
     with open(tla_path, 'r') as tla_file:
-        tla_contents = tla_file.read()
+        for line in tla_file:
+            if 'TraceNodes ==' in line or 'TraceEdges ==' in line:
+                reset_contents.append(line)
+                reset_contents.append("    {}\n")
+                next(tla_file)
+            else:
+                reset_contents.append(line)
 
-    # Remplacer les sections TraceNodes et TraceEdges dans le contenu.
-    new_tla_contents = re.sub(r"TraceNodes ==\n\s*{.*?}", f"TraceNodes ==\n    {nodes_str}", tla_contents, flags=re.DOTALL)
-    new_tla_contents = re.sub(r"TraceEdges ==\n\s*{.*?}", f"TraceEdges ==\n    {edges_str}", new_tla_contents, flags=re.DOTALL)
-
-    # Écrire le nouveau contenu dans trace.tla
+    # Écrire le contenu réinitialisé dans le fichier
     with open(tla_path, 'w') as tla_file:
-        tla_file.write(new_tla_contents)
+        tla_file.writelines(reset_contents)
 
+    # Deuxième passe pour insérer les nouvelles valeurs
+    updated_contents = []
+    with open(tla_path, 'r') as tla_file:
+        for line in tla_file:
+            if 'TraceNodes ==' in line:
+                updated_contents.append(line)
+                updated_contents.append(f"    {nodes_str}\n")
+                next(tla_file)
+            elif 'TraceEdges ==' in line:
+                updated_contents.append(line)
+                updated_contents.append(f"    {edges_str}\n")
+                next(tla_file)
+            else:
+                updated_contents.append(line)
 
-
-
-
-
+    # Écrire le contenu mis à jour dans le fichier après la deuxième passe
+    with open(tla_path, 'w') as tla_file:
+        tla_file.writelines(updated_contents)
 
 
 
