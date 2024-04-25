@@ -13,13 +13,15 @@ public class Message {
     private final String type;
 
     private final String phase;
+    private  final String prune;
 
-    public Message(String from, String to,  String type, String phase, String content,boolean prune,long senderClock) {
+    public Message(String from, String to,  String type, String phase, String content,String prune,long senderClock) {
         this.from = from;
         this.to = to;
         this.type = type;
         this.phase = phase;
         this.content = content;
+        this.prune = prune;
         this.senderClock = senderClock;
     }
 
@@ -34,7 +36,8 @@ public class Message {
         this.type = components[2];
         this.phase = components[3];
         this.content = components[4];
-        this.senderClock = Long.parseLong(components[5]);
+        this.prune = components[5];
+        this.senderClock = Long.parseLong(components[6]);
     }
 
     public String getFrom() {
@@ -53,6 +56,10 @@ public class Message {
         return senderClock;
     }
 
+    public Boolean getPrune() {
+        return prune.equals("true");
+    }
+
     public String getType() {
         return type;
     }
@@ -63,6 +70,6 @@ public class Message {
 
     @Override
     public String toString() {
-        return String.join(";", new String[]{from, to, type,phase,content, Long.toString(senderClock)});
+        return String.join(";", new String[]{from, to, type,phase,content,prune, Long.toString(senderClock)});
     }
 }
