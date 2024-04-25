@@ -16,7 +16,6 @@ def get_files(config):
 
 def read_ndjson(config_file):
     with open(config_file, 'r') as f:
-        # Lire le reste du fichier NDJSON
         return [json.loads(line) for line in f]
     
 def run(agents):
@@ -32,7 +31,7 @@ def run(agents):
     # Wait the server to run, if not some manager might start 
     # running before the server, leading to an error
     # This behavior might be interesting for trace validation
-    time.sleep(2)
+    time.sleep(0.5)
 
   # Now you can process the config data
     for agent_data in agents:
