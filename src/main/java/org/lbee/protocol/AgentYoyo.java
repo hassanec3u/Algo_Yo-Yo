@@ -8,6 +8,7 @@ import org.lbee.instrumentation.trace.VirtualField;
 import org.lbee.network.NetworkManager;
 import org.lbee.network.TimeOutException;
 
+import java.awt.geom.Area;
 import java.io.IOException;
 import java.util.*;
 
@@ -110,11 +111,8 @@ public class AgentYoyo {
 
     public void phase_yo_down() throws IOException {
         phase = "down";
-        tracePhase.set(new Object[]{phase});
-
-
         // trace the down phase
-        //this.tracePhase.set(this.phase.toLowerCase(Locale.ROOT));
+
 
         if (this.etat == EtatNoeud.SOURCE) {
             diffusionID(this.sortants, this.id);
@@ -137,10 +135,7 @@ public class AgentYoyo {
 
     public void phase_yo_up() throws IOException {
         phase = "up";
-        tracePhase.set(new Object[]{phase});
         // trace the down phase
-        // this.tracePhase.set(this.phase.toLowerCase(Locale.ROOT));
-
         //cas ou le noeud actuel est un puit
         if (this.etat == EtatNoeud.PUITS) {
             //on envoie YES au entrants ayant envoyé val min
@@ -193,7 +188,7 @@ public class AgentYoyo {
 
 
             //traacing
-            tracer.log("UpOther", new Object[]{Integer.parseInt(id)});
+          tracer.log("UpOther", new Object[]{Integer.parseInt(id)});
         }
 
         if (etat == EtatNoeud.SOURCE) {
@@ -217,19 +212,23 @@ public class AgentYoyo {
 
     public void run() {
         mise_a_jour_etat();
-
         //demande au thread de s'arreter au bout de 0.5 seconde pour eviter les boucles infini
-        /*Timer timer = new Timer();
+        Timer timer = new Timer();
         timer.schedule(new TimerTask() {
             public void run() {
                 System.exit(0); // Arrête le programme
             }
-        }, 200); // Démarre la tâche après 1 secondes*/
+        }, 500); // Démarre la tâche après 500 ms
 
         while (true) {
             try {
 
-                //pour l'affichagge
+                traceInGoing.set(entrants); /* ca ne marche pas car :Attempted to compare integer 2 with non-integer: <<"3">>*/
+
+               // tracer.log("addElement", new Object[]{entrants});/* ca ne marche pas car, car le path est un string alors que tla demande un Integer :Attempted to compare integer 2 with non-integer: <<"3">>*/
+
+               // tracer.notifyChange("incoming", "AddElement", }, entrants);
+
                 System.out.println("id: " + id + " mon etat: " + etat + " " + entrants + " " + sortants + " mini: " + mini_actuel);
 
 
@@ -253,8 +252,7 @@ public class AgentYoyo {
         }
         if (message != null) {
             this.handleMessage(message);
-        }
-        else {
+        } else {
             System.out.printf("message est nul, beug");
         }
     }

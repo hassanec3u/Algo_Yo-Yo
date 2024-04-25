@@ -65,10 +65,6 @@ def update_tla_file(config_path, tla_path):
 
 def read_json(config_file):
     with open(config_file, 'r') as f:
-        # Ignorer les deux premières lignes( Nodes et Edges)
-        next(f)
-        next(f)
-        # Lire le reste du fichier NDJSON
         return [json.loads(line) for line in f]
 def get_files(config):
     files = []

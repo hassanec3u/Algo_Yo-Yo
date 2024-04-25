@@ -16,9 +16,6 @@ def get_files(config):
 
 def read_ndjson(config_file):
     with open(config_file, 'r') as f:
-        # Ignorer les deux premières lignes
-        next(f)
-        next(f)
         # Lire le reste du fichier NDJSON
         return [json.loads(line) for line in f]
     
