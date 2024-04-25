@@ -218,7 +218,7 @@ public class AgentYoyo {
             public void run() {
                 System.exit(0); // Arrête le programme
             }
-        }, 500); // Démarre la tâche après 500 ms
+        }, 3000); // Démarre la tâche après 500 ms
 
         while (true) {
             try {
@@ -248,12 +248,12 @@ public class AgentYoyo {
         try {
             message = networkManager.receive(id, 1000);
         } catch (TimeOutException e) {
-            System.out.printf("timeOut");
+            //System.out.println("timeOut");
         }
         if (message != null) {
             this.handleMessage(message);
         } else {
-            System.out.printf("message est nul, beug");
+            System.out.println("message est nul, beug");
         }
     }
 
