@@ -14,7 +14,7 @@ public class Message {
 
     private final String phase;
 
-    public Message(String from, String to,  String type, String phase, String content, long senderClock) {
+    public Message(String from, String to,  String type, String phase, String content,boolean prune,long senderClock) {
         this.from = from;
         this.to = to;
         this.type = type;

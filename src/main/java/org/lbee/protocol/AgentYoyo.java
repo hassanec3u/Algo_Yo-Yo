@@ -1,5 +1,6 @@
 package org.lbee.protocol;
 
+import com.sun.jdi.connect.TransportTimeoutException;
 import org.lbee.instrumentation.clock.ClockException;
 import org.lbee.instrumentation.clock.ClockFactory;
 import org.lbee.instrumentation.clock.InstrumentationClock;
@@ -30,6 +31,7 @@ public class AgentYoyo {
     private String phase;
     final NetworkManager networkManager;
     private InstrumentationClock temps;
+    private boolean isActive;
 
     //on stocke les noeuds a inversé
     private Set<String> noeud_a_inverser;
@@ -55,6 +57,7 @@ public class AgentYoyo {
         this.compteurMsgSortant = 0;
         this.parents_ayant_valeur_min = new HashSet<>();
         this.mini_actuel = id;
+        this.isActive = true;
 
         try {
             temps = ClockFactory.getClock(2, "clock");
@@ -96,7 +99,6 @@ public class AgentYoyo {
     //on inverse les nœuds à la fin de la phase -YO
     public void inverse_node() {
         for (String node : noeud_a_inverser) {
-            //System.out.println("le noued "+ id+ " a inverser les noueds :" + noeud_a_inverser);
             if (entrants.contains(node)) {
                 entrants.remove(node);
                 sortants.add(node);
@@ -112,10 +114,8 @@ public class AgentYoyo {
     public void phase_yo_down() throws IOException {
         phase = "down";
         // trace the down phase
-
-
         if (this.etat == EtatNoeud.SOURCE) {
-            diffusionID(this.sortants, this.id);
+            diffusionID(this.sortants, this.id,false);
             tracer.log("DownSource", new Object[]{Integer.parseInt(id)});
 
         } else {
@@ -124,7 +124,7 @@ public class AgentYoyo {
                 // Attendre que tous les messages soient reçus avant de transferer le min actuel
                 attendreMessage();
             }
-            diffusionID(this.sortants, mini_actuel);
+            diffusionID(this.sortants, mini_actuel,false);
             //tracing
             tracer.log("DownOther", new Object[]{Integer.parseInt(id)});
         }
@@ -139,7 +139,7 @@ public class AgentYoyo {
         //cas ou le noeud actuel est un puit
         if (this.etat == EtatNoeud.PUITS) {
             //on envoie YES au entrants ayant envoyé val min
-            diffusionReponse(this.parents_ayant_valeur_min, TypeMessage.YES.toString());
+            diffusionReponse(this.parents_ayant_valeur_min, TypeMessage.YES.toString(),false);
 
             //on cree la liste des gens qui ont envoyé No
             HashSet<String> noParent = new HashSet<>();
@@ -149,7 +149,7 @@ public class AgentYoyo {
                 }
             }
             //On envoie NO au reste
-            diffusionReponse(noParent, TypeMessage.NO.toString());
+            diffusionReponse(noParent, TypeMessage.NO.toString(),false);
             noParent.clear();
             inverse_node();
 
@@ -167,12 +167,12 @@ public class AgentYoyo {
 
             //si on recoit un No des sortants, on le proapage dans les entrants
             if (this.aRecuUnNO) {
-                diffusionReponse(this.entrants, TypeMessage.NO.toString());
+                diffusionReponse(this.entrants, TypeMessage.NO.toString(),false);
                 noeud_a_inverser.addAll(entrants);
             } else {
 
                 //sinon on propage yes entrant ayant envoyé la val min
-                diffusionReponse(this.parents_ayant_valeur_min, TypeMessage.YES.toString());
+                diffusionReponse(this.parents_ayant_valeur_min, TypeMessage.YES.toString(),false);
 
                 //Et NO aux parents n'ayant pas envoyé la valeur minimum
                 HashSet<String> no = new HashSet<>();
@@ -181,7 +181,7 @@ public class AgentYoyo {
                         no.add(agent);
                     }
                 }
-                diffusionReponse(no, TypeMessage.NO.toString());
+                diffusionReponse(no, TypeMessage.NO.toString(),false);
                 no.clear();
             }
             inverse_node();
@@ -248,7 +248,8 @@ public class AgentYoyo {
         try {
             message = networkManager.receive(id, 1000);
         } catch (TimeOutException e) {
-            //System.out.println("timeOut");
+            System.out.println("timeout");
+            System.exit(1);
         }
         if (message != null) {
             this.handleMessage(message);
@@ -257,21 +258,20 @@ public class AgentYoyo {
         }
     }
 
-    public void diffusionID(Set<String> destinataire, String idADiffuser) throws IOException {
-
+    public void diffusionID(Set<String> destinataire, String idADiffuser,Boolean prune) throws IOException {
         for (String agent : destinataire) {
             //transfere son id à chaque agent dans ses sortants
-            networkManager.send(new Message(this.id, agent, TypeMessage.ID.toString(), this.phase, idADiffuser, temps.getNextTime()));
+            networkManager.send(new Message(this.id, agent, TypeMessage.ID.toString(), this.phase, idADiffuser,prune, temps.getNextTime()));
         }
     }
 
-    public void diffusionReponse(Set<String> destinataire, String reponse) throws IOException {
+    public void diffusionReponse(Set<String> destinataire, String reponse,boolean prune) throws IOException {
         for (String agent : destinataire) {
             if (reponse.equals("NO")) {
                 this.noeud_a_inverser.add(agent);
             }
             //transfere son id à chaque agent dans ses sortants
-            networkManager.send(new Message(this.id, agent, reponse, this.phase, "NoIdToSend", temps.getNextTime()));
+            networkManager.send(new Message(this.id, agent, reponse, this.phase, "NoIdToSend",prune, temps.getNextTime()));
         }
     }
 
