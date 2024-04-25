@@ -223,7 +223,9 @@ public class AgentYoyo {
         while (true) {
             try {
 
-                traceInGoing.set(entrants); /* ca ne marche pas car :Attempted to compare integer 2 with non-integer: <<"3">>*/
+                // transform entrants into list of integers
+                List<Integer> incoming = entrants.stream().map(Integer::parseInt).toList();
+                traceInGoing.addAll(incoming); /* ca ne marche pas car :Attempted to compare integer 2 with non-integer: <<"3">>*/
 
                // tracer.log("addElement", new Object[]{entrants});/* ca ne marche pas car, car le path est un string alors que tla demande un Integer :Attempted to compare integer 2 with non-integer: <<"3">>*/
 
