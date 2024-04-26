@@ -65,10 +65,10 @@ public class AgentYoyo {
             throw new RuntimeException(e);
         }
 
-        this.traceMessages = tracer.getVariableTracer("mailbox").getField(Integer.parseInt(this.id));
-        this.traceInGoing = tracer.getVariableTracer("incoming").getField(Integer.parseInt(this.id));
-        this.traceOutGoing = tracer.getVariableTracer("outgoing").getField(Integer.parseInt(this.id));
-        this.tracePhase = tracer.getVariableTracer("phase").getField(Integer.parseInt(this.id));
+        this.traceMessages = tracer.getVariableTracer("mailbox").getField(this.id);
+        this.traceInGoing = tracer.getVariableTracer("incoming").getField(this.id);
+        this.traceOutGoing = tracer.getVariableTracer("outgoing").getField(this.id);
+        this.tracePhase = tracer.getVariableTracer("phase").getField(this.id);
         this.tracer = tracer;
     }
 
