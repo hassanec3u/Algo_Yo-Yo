@@ -108,9 +108,6 @@ print("# Merge traces.\n")
 trace_merger.run(files,sort=True, remove_meta=True, out="trace.ndjson")
 
 
-#transform les chaines de caractères en entiers dans le fichier trace.ndjson
-subprocess.run(["python", "formatConfig.py"])
-
 # Validate trace
 print("# Start TLA+ trace spec.\n")
 tla_trace_validation.run_tla("spec/YoYoNoPruningTrace.tla","trace.ndjson","conf.ndjson")

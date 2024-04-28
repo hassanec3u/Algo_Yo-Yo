@@ -13,25 +13,48 @@ import java.awt.geom.Area;
 import java.io.IOException;
 import java.util.*;
 
+/**
+ * Cette classe représente un agent Yoyo utilisé dans un système distribué pour la résolution
+ * de problèmes de consensus.
+ * <p>
+ * L'agent Yoyo est conçu pour fonctionner dans un réseau distribué où chaque agent communique
+ * avec ses voisins pour atteindre un consensus sur une valeur minimale.
+ * <p>
+ * L'agent Yoyo suit un algorithme basé sur les phases "down" et "up" pour atteindre le consensus.
+ * Pendant la phase "down", les agents échangent des identifiants (IDs) avec leurs voisins sortants.
+ * Pendant la phase "up", les agents diffusent des réponses à leurs voisins entrants en fonction
+ * des informations reçues lors de la phase "down".
+ * <p>
+ * Cette classe gère la logique de fonctionnement d'un agent Yoyo, y compris la gestion des messages,
+ * la mise à jour de l'état de l'agent, et la diffusion des informations aux voisins.
+ * <p>
+ * Les instances de cette classe doivent être créées avec un gestionnaire de réseau (NetworkManager),
+ * un identifiant unique, un ensemble de voisins entrants (incoming) et un ensemble de voisins sortants (outgoing).
+ * De plus, un traceur (TLATracer) est utilisé pour la surveillance et le débogage des interactions entre les agents.
+ */
 public class AgentYoyo {
 
     private String id;
     //pour stocker les messages recu de la ronde suivante
     private Set<String> incoming;
     private Set<String> outgoing;
-    private EtatNoeud etat;
-    private boolean aRecuToutSesincoming;
-    private boolean aRecuToutSesoutgoing;
-    private int compteurMsgincoming;
-    private int compteurMsgSortant;
-    private boolean aRecuUnNO;
-    private Set<String> parents_ayant_valeur_min;
-    private String mini_actuel;
+    private EtatNoeud state;
+    private boolean receivedAll_Incoming;
+    private boolean receivedAll_Outgoing;
+    private int incomingMessageCounter;
+    private int outgoingMessageCounter;
+    private boolean receiveNo;
+    private Set<String> parentsWithMinValue;
+    private String curentMin;
     private String phase;
     final NetworkManager networkManager;
-    private InstrumentationClock temps;
+    private InstrumentationClock time;
     private boolean isActive;
     private String prune;
+
+    //ajoute nbIteration max pour eviter les boucles infini
+    private int nbIterationMax = 100;
+
 
     //on stocke les noeuds a inversé
     private Set<String> noeud_a_inverser;
@@ -43,25 +66,35 @@ public class AgentYoyo {
     private final VirtualField traceOutGoing;
     private final VirtualField tracePhase;
 
+    /**
+     * Constructeur de la classe AgentYoyo.
+     *
+     * @param networkManager Gestionnaire de réseau utilisé pour la communication avec les autres agents.
+     * @param id             Identifiant unique de l'agent.
+     * @param in             Ensemble des identifiants des voisins entrants.
+     * @param out            Ensemble des identifiants des voisins sortants.
+     * @param tracer         Traceur utilisé pour la surveillance et le débogage des interactions entre les agents.
+     */
     public AgentYoyo(NetworkManager networkManager, String id, Set<String> in, Set<String> out, TLATracer tracer) {
         this.networkManager = networkManager;
         this.id = id;
         this.incoming = in;
         this.outgoing = out;
-        this.etat = EtatNoeud.INCONNU;
-        this.aRecuToutSesincoming = false;
-        this.aRecuToutSesoutgoing = false;
-        this.aRecuUnNO = false;
+        this.state = EtatNoeud.INCONNU;
+        this.receivedAll_Incoming = false;
+        this.receivedAll_Outgoing = false;
+        this.receiveNo = false;
         this.noeud_a_inverser = new HashSet<>();
-        this.compteurMsgincoming = 0;
-        this.compteurMsgSortant = 0;
-        this.parents_ayant_valeur_min = new HashSet<>();
-        this.mini_actuel = id;
+        this.incomingMessageCounter = 0;
+        this.outgoingMessageCounter = 0;
+        this.parentsWithMinValue = new HashSet<>();
+        this.curentMin = id;
         this.isActive = true;
         this.prune = "false";
 
+
         try {
-            temps = ClockFactory.getClock(2, "clock");
+            time = ClockFactory.getClock(2, "clock");
         } catch (ClockException e) {
             throw new RuntimeException(e);
         }
@@ -73,31 +106,48 @@ public class AgentYoyo {
         this.tracer = tracer;
     }
 
+    /**
+     * Ajoute un identifiant à l'ensemble des voisins entrants.
+     *
+     * @param agent Identifiant de l'agent voisin à ajouter.
+     */
     public void ajouterEntrant(String agent) {
         if (!agent.isEmpty()) {
             incoming.add(agent);
         }
     }
 
+    /**
+     * Ajoute un identifiant à l'ensemble des voisins sortants.
+     *
+     * @param agent Identifiant de l'agent voisin à ajouter.
+     */
     public void ajouterSortant(String agent) {
         if (!agent.isEmpty()) {
             outgoing.add(agent);
         }
     }
 
-    public void mise_a_jour_etat() {
+
+    /**
+     * Met à jour l'état de l'agent en fonction de ses voisins entrants et sortants.
+     */
+    public void mise_a_jour_state() {
         if (this.incoming.isEmpty()) {
-            this.etat = EtatNoeud.SOURCE;
+            this.state = EtatNoeud.SOURCE;
         }
         if (this.outgoing.isEmpty()) {
-            this.etat = EtatNoeud.PUITS;
+            this.state = EtatNoeud.PUITS;
         }
         if (!this.outgoing.isEmpty() && !this.incoming.isEmpty()) {
-            this.etat = EtatNoeud.INTERNE;
+            this.state = EtatNoeud.INTERNE;
         }
     }
 
-    //on inverse les nœuds à la fin de la phase -YO
+
+    /**
+     * Inverse les nœuds dans lesquels l'agent est connecté.
+     */
     public void inverse_node() {
         for (String node : noeud_a_inverser) {
             if (incoming.contains(node)) {
@@ -111,47 +161,59 @@ public class AgentYoyo {
         noeud_a_inverser.clear();
     }
 
-
+    /**
+     * Effectue la phase "down" de l'algorithme Yoyo.
+     * Pendant cette phase, l'agent diffuse son identifiant à ses voisins sortants.
+     *
+     * @throws IOException En cas d'erreur de communication réseau.
+     */
     public void phase_yo_down() throws IOException {
         phase = "down";
 
-        if (this.etat == EtatNoeud.SOURCE) {
-            diffusionID(this.outgoing, this.id, this.prune);
+        if (this.state == EtatNoeud.SOURCE) {
+            diffuseId(this.outgoing, this.id, this.prune);
             tracer.log("DownSource", new Object[]{Integer.parseInt(id)});
 
         } else {
             //cas ou on est dans un noeud interne/puits, on attend d'avoir recu tout les id des noueds incoming
-            while (!this.aRecuToutSesincoming) {
+            while (!this.receivedAll_Incoming) {
                 // Attendre que tous les messages soient reçus avant de transferer le min actuel
                 attendreMessage();
             }
-            diffusionID(this.outgoing, mini_actuel, this.prune);
+            diffuseId(this.outgoing, curentMin, this.prune);
             //tracing
             tracer.log("DownOther", new Object[]{Integer.parseInt(id)});
+
         }
 
         //mise a jour variable pour la seconde ronde
-        aRecuToutSesincoming = false;
+        receivedAll_Incoming = false;
     }
 
+    /**
+     * Effectue la phase "up" de l'algorithme Yoyo.
+     * Pendant cette phase, l'agent traite les réponses des voisins entrants et diffuse ses réponses
+     * en fonction de l'état et des informations reçues lors de la phase "down".
+     *
+     * @throws IOException En cas d'erreur de communication réseau.
+     */
     public void phase_yo_up() throws IOException {
         phase = "up";
 
-        // trace the down phase
         //cas ou le noeud actuel est un puit
-        if (this.etat == EtatNoeud.PUITS) {
+        if (this.state == EtatNoeud.PUITS) {
             //on envoie YES au incoming ayant envoyé val min
-            diffusionReponse(this.parents_ayant_valeur_min, TypeMessage.YES.toString(),this.prune);
+            diffuseResponse(this.parentsWithMinValue, TypeMessage.YES.toString(), this.prune);
 
             //on cree la liste des gens qui ont envoyé No
             HashSet<String> noParent = new HashSet<>();
             for (String agent : this.incoming) {
-                if (!this.parents_ayant_valeur_min.contains(agent)) {
+                if (!this.parentsWithMinValue.contains(agent)) {
                     noParent.add(agent);
                 }
             }
             //On envoie NO au reste
-            diffusionReponse(noParent, TypeMessage.NO.toString(), this.prune);
+            diffuseResponse(noParent, TypeMessage.NO.toString(), this.prune);
             noParent.clear();
             inverse_node();
 
@@ -161,100 +223,92 @@ public class AgentYoyo {
         }
 
         //cas ou nous somme dans un noued interne
-        if (this.etat == EtatNoeud.INTERNE) {
+        if (this.state == EtatNoeud.INTERNE) {
             //on attends qu'ils recoit les messages de ses outgoing
-            while (!aRecuToutSesoutgoing) {
+            while (!receivedAll_Outgoing) {
                 attendreMessage();
             }
 
             //si on recoit un No des outgoing, on le proapage dans les incoming
-            if (this.aRecuUnNO) {
-                diffusionReponse(this.incoming, TypeMessage.NO.toString(), this.prune);
+            if (this.receiveNo) {
+                diffuseResponse(this.incoming, TypeMessage.NO.toString(), this.prune);
                 noeud_a_inverser.addAll(incoming);
             } else {
 
                 //sinon on propage yes entrant ayant envoyé la val min
-                diffusionReponse(this.parents_ayant_valeur_min, TypeMessage.YES.toString(), this.prune);
+                diffuseResponse(this.parentsWithMinValue, TypeMessage.YES.toString(), this.prune);
 
                 //Et NO aux parents n'ayant pas envoyé la valeur minimum
                 HashSet<String> no = new HashSet<>();
                 for (String agent : this.incoming) {
-                    if (!this.parents_ayant_valeur_min.contains(agent)) {
+                    if (!this.parentsWithMinValue.contains(agent)) {
                         no.add(agent);
                     }
                 }
-                diffusionReponse(no, TypeMessage.NO.toString(), this.prune);
+                diffuseResponse(no, TypeMessage.NO.toString(), this.prune);
                 no.clear();
             }
             inverse_node();
-
-
-            //traacing
-          tracer.log("UpOther", new Object[]{Integer.parseInt(id)});
+            //tracing
+            tracer.log("UpOther", new Object[]{Integer.parseInt(id)});
         }
 
-        if (etat == EtatNoeud.SOURCE) {
-            while (!aRecuToutSesoutgoing) {
+        if (state == EtatNoeud.SOURCE) {
+            while (!receivedAll_Outgoing) {
                 attendreMessage();
             }
             inverse_node();
-
             //Tracing
             tracer.log("UpSource", new Object[]{Integer.parseInt(id)});
         }
 
         //parents ayant valeur min
-        parents_ayant_valeur_min.clear();
+        parentsWithMinValue.clear();
 
         //apres avoir tout envoyé, on remet à false
-        this.aRecuUnNO = false;
-        aRecuToutSesoutgoing = false;
+        this.receiveNo = false;
+        receivedAll_Outgoing = false;
     }
 
-
+    /**
+     * Exécute l'agent Yoyo, en itérant sur les phases "down" et "up" jusqu'à ce qu'un consensus soit atteint
+     * ou jusqu'à ce qu'un nombre maximal d'itérations soit atteint.
+     */
     public void run() {
-        mise_a_jour_etat();
-        //demande au thread de s'arreter au bout de 0.5 seconde pour eviter les boucles infini
-        Timer timer = new Timer();
-        timer.schedule(new TimerTask() {
-            public void run() {
-                System.exit(0); // Arrête le programme
-            }
-        }, 1000); // Démarre la tâche après 500 ms
-
+        mise_a_jour_state();
         // transform incoming into list of integers
         List<Integer> incoming = this.incoming.stream().map(Integer::parseInt).toList();
-        traceInGoing.addAll(incoming); /* ca ne marche pas car :Attempted to compare integer 2 with non-integer: <<"3">>*/
+        traceInGoing.addAll(incoming);
 
         // transform outgoing into list of integers
         List<Integer> outgoing = this.outgoing.stream().map(Integer::parseInt).toList();
         traceOutGoing.addAll(outgoing);
 
-
-        while (isActive) {
+        while (nbIterationMax > 0 && isActive) {
             try {
 
-
-                // tracer.log("AddInteger", new Object[]{incoming});/* ca ne marche pas car, car le path est un string alors que tla demande un Integer :Attempted to compare integer 2 with non-integer: <<"3">>*/
-                // tracer.notifyChange("incoming", "AddElement", }, incoming);
-
-                System.out.println("id: " + id + " mon etat: " + etat + " " + incoming + " " + outgoing + " mini: " + mini_actuel);
-
+                System.out.println("id: " + id + " mon state: " + state + " " + incoming + " " + outgoing + " mini: " + curentMin);
 
                 phase_yo_down();
                 phase_yo_up();
-                mise_a_jour_etat();
+                mise_a_jour_state();
                 System.out.println();
 
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
+            nbIterationMax--;
+
         }
-        System.out.println("je suis le noued " + id +" et j'ai finit" );
+        System.out.println("je suis le noued " + id + " et j'ai finit");
 
     }
 
-
+    /**
+     * Attend la réception d'un message provenant d'un voisin.
+     *
+     * @throws IOException En cas d'erreur de communication réseau.
+     */
     public void attendreMessage() throws IOException {
         Message message = null;
         try {
@@ -270,28 +324,49 @@ public class AgentYoyo {
         }
     }
 
-    public void diffusionID(Set<String> destinataire, String idADiffuser, String prune) throws IOException {
+    /**
+     * Diffuse l'identifiant spécifié aux destinataires fournis.
+     *
+     * @param destinataire Ensemble des identifiants des destinataires.
+     * @param idADiffuser  Identifiant à diffuser.
+     * @param prune        Valeur de prune à inclure dans le message.
+     * @throws IOException En cas d'erreur de communication réseau.
+     */
+    public void diffuseId(Set<String> destinataire, String idADiffuser, String prune) throws IOException {
         for (String agent : destinataire) {
             //transfere son id à chaque agent dans ses outgoing
-            networkManager.send(new Message(this.id, agent, TypeMessage.ID.toString(), this.phase, idADiffuser, prune, temps.getNextTime()));
+            networkManager.send(new Message(this.id, agent, TypeMessage.ID.toString(), this.phase, idADiffuser, prune, time.getNextTime()));
         }
-        traceMessages.add(Map.of("phase", this.phase, "sndr", this.id,"val",this.mini_actuel));
-        tracer.log();
+        traceMessages.add(Map.of("phase", this.phase, "sndr", Integer.parseInt(this.id), "val", Integer.parseInt(this.curentMin)));
+
     }
 
-    public void diffusionReponse(Set<String> destinataire, String reponse, String prune) throws IOException {
+    /**
+     * Diffuse la réponse spécifiée aux destinataires fournis.
+     *
+     * @param destinataire Ensemble des identifiants des destinataires.
+     * @param reponse      Réponse à diffuser ("YES" ou "NO").
+     * @param prune        Valeur de prune à inclure dans le message.
+     * @throws IOException En cas d'erreur de communication réseau.
+     */
+    public void diffuseResponse(Set<String> destinataire, String reponse, String prune) throws IOException {
         for (String agent : destinataire) {
             if (reponse.equals("NO")) {
                 this.noeud_a_inverser.add(agent);
             }
-
             //transfere son id à chaque agent dans ses outgoing
-            networkManager.send(new Message(this.id, agent, reponse, this.phase, "NoIdToSend", prune, temps.getNextTime()));
+            networkManager.send(new Message(this.id, agent, reponse, this.phase, "NoIdToSend", prune, time.getNextTime()));
         }
-        traceMessages.add(Map.of("phase", this.phase, "sndr", this.id,"reply",reponse));
-        tracer.log();
+        traceMessages.add(Map.of("phase", this.phase, "sndr", Integer.parseInt(this.id), "reply", reponse));
+
     }
 
+    /**
+     * Gère la réception d'un message par l'agent.
+     *
+     * @param message Message reçu.
+     * @throws IOException En cas d'erreur de communication réseau.
+     */
     private void handleMessage(Message message) throws IOException {
 
         //Verifie si le message nous appartient
@@ -304,48 +379,42 @@ public class AgentYoyo {
                 //cas ou on recoit un ID
                 if (message.getType().equals(TypeMessage.ID.toString())) {
                     //si on a le meme id, on le rajoute dans l'ensemble des parents ayant la valeur min
-                    if (Integer.parseInt(message.getContent()) == Integer.parseInt(mini_actuel)) {
-                        parents_ayant_valeur_min.add(message.getFrom());
+                    if (Integer.parseInt(message.getContent()) == Integer.parseInt(curentMin)) {
+                        parentsWithMinValue.add(message.getFrom());
                     }
-
                     //si la valeur recu est plus petite, on efface la liste et on le rajoute
-                    if (Integer.parseInt(message.getContent()) < Integer.parseInt(mini_actuel)) {
-                        parents_ayant_valeur_min.clear();
-                        parents_ayant_valeur_min.add(message.getFrom());
-                        mini_actuel = message.getContent();
+                    if (Integer.parseInt(message.getContent()) < Integer.parseInt(curentMin)) {
+                        parentsWithMinValue.clear();
+                        parentsWithMinValue.add(message.getFrom());
+                        curentMin = message.getContent();
                     }
-
-                    this.compteurMsgincoming++;
-                    if (compteurMsgincoming == incoming.size()) {
-                        compteurMsgincoming = 0;
-                        this.aRecuToutSesincoming = true;
+                    this.incomingMessageCounter++;
+                    if (incomingMessageCounter == incoming.size()) {
+                        incomingMessageCounter = 0;
+                        this.receivedAll_Incoming = true;
                     }
                 }
-
-
                 //cas ou on recoit un YES
                 if (message.getType().equals(TypeMessage.YES.toString())) {
-                    compteurMsgSortant++;
+                    outgoingMessageCounter++;
                     //on a recu tout les reponses des voisins outgoing
-                    if (compteurMsgSortant == outgoing.size()) {
-                        compteurMsgSortant = 0;
-                        aRecuToutSesoutgoing = true;
+                    if (outgoingMessageCounter == outgoing.size()) {
+                        outgoingMessageCounter = 0;
+                        receivedAll_Outgoing = true;
                     }
                 }
-
                 //cas ou on recoit un NO
                 if (message.getType().equals(TypeMessage.NO.toString())) {
 
                     //on le stocke
                     noeud_a_inverser.add(message.getFrom());
-                    this.aRecuUnNO = true;
-                    compteurMsgSortant++;
+                    this.receiveNo = true;
+                    outgoingMessageCounter++;
                 }
-
                 // Vérifier si on a reçu tous les messages outgoing
-                if (compteurMsgSortant == outgoing.size()) {
-                    compteurMsgSortant = 0;
-                    aRecuToutSesoutgoing = true;
+                if (outgoingMessageCounter == outgoing.size()) {
+                    outgoingMessageCounter = 0;
+                    receivedAll_Outgoing = true;
                 }
 
             } else {
