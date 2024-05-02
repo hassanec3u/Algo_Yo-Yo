@@ -11,7 +11,7 @@ MapArgs(mapFunction, cur, default, op, args) == Print(<<"Trace spec isn't valid,
 MapArgsBase(mapFunction, cur, default, op, args) == args
 
 (* Generic operators *)
-Set(cur, val) == val
+Update(cur, val) == val
 
 AddElement(cur, val) == cur \cup {val}
 AddElements(cur, vals) == cur \cup ToSet(vals)
@@ -33,6 +33,7 @@ ClearBag(cur, val) == <<>>
 AppendElement(cur, val) == Append(cur, val)
 
 ResetKey(cur, val) == [k \in DOMAIN cur |-> IF k = val THEN Nil ELSE cur[k]]
+SetKey(cur, val, new) == [k \in DOMAIN cur |-> IF k = val THEN new ELSE cur[k]]
 UpdateRec(cur, val) == [k \in DOMAIN cur |-> IF k \in DOMAIN val THEN val[k] ELSE cur[k]]
 
 AddInteger(cur, val) == cur + val
@@ -42,8 +43,8 @@ Unchanged(cur, val) == cur
 
 
 Apply(op, var, default, args) ==
-    CASE op = "Init" -> Set(var, default)
-    []   op = "Set" -> Set(var, args[1])
+    CASE op = "Init" -> Update(var, default)
+    []   op = "Update" -> Update(var, args[1])
     []   op = "AddElement" -> AddElement(var, args[1])
     []   op = "AddElements" -> AddElements(var, args[1])
     []   op = "RemoveElement" -> RemoveElement(var, args[1])
@@ -53,6 +54,7 @@ Apply(op, var, default, args) ==
     []   op = "ClearBag" -> Clear(var, <<>>)
     []   op = "AppendElement" -> AppendElement(var, args[1])
     []   op = "ResetKey" -> ResetKey(var, args[1])
+    []   op = "SetKey" -> SetKey(var, args[1],args[2])
     []   op = "UpdateRec" -> UpdateRec(var, args[1])
     \* []   op = "InitWithValue" -> UpdateRec(default, args[1])
     []   op = "InitRec" -> UpdateRec(var,default)
