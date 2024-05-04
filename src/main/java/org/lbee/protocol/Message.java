@@ -56,7 +56,8 @@ public class Message {
         return senderClock;
     }
 
-    public Boolean getPrune() {
+
+    public Boolean isPrune() {
         return prune.equals("true");
     }
 

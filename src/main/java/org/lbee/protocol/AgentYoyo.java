@@ -33,7 +33,7 @@ import java.util.*;
 public class AgentYoyo {
 
     private String id;
-    //pour stocker les messages recu de la ronde suivante
+    // pour stocker les messages recu de la ronde suivante
     private Set<String> incoming;
     private Set<String> outgoing;
     private StateNode state;
@@ -48,13 +48,13 @@ public class AgentYoyo {
     final NetworkManager networkManager;
     private InstrumentationClock time;
     private boolean isActive;
-    private String prune;
 
-    //ajoute nbIteration max pour eviter les boucles infini
-    private int nbIterationMax = 10;
+    private Set<String> nodeToPrune;
 
+    // ajoute nbIteration max pour eviter les boucles infini
+    private int nbIterationMax = 100;
 
-    //on stocke les noeuds a inversé
+    // on stocke les noeuds a inversé
     private Set<String> noeud_a_inverser;
 
     // tracing
@@ -83,12 +83,12 @@ public class AgentYoyo {
         this.receivedAll_Outgoing = false;
         this.receiveNo = false;
         this.noeud_a_inverser = new HashSet<>();
+        this.nodeToPrune = new HashSet<>();
         this.incomingMessageCounter = 0;
         this.outgoingMessageCounter = 0;
         this.parentsWithMinValue = new HashSet<>();
         this.curentMin = id;
         this.isActive = true;
-        this.prune = "false";
 
 
         try {
@@ -126,11 +126,10 @@ public class AgentYoyo {
         }
     }
 
-
     /**
      * Met à jour l'état de l'agent en fonction de ses voisins entrants et sortants.
      */
-    public void mise_a_jour_state() {
+    public void updateNodeState() {
         if (this.incoming.isEmpty()) {
             this.state = StateNode.SOURCE;
         }
@@ -141,7 +140,6 @@ public class AgentYoyo {
             this.state = StateNode.INTERNE;
         }
     }
-
 
     /**
      * Inverse les nœuds dans lesquels l'agent est connecté.
@@ -157,8 +155,19 @@ public class AgentYoyo {
                     incoming.add(node);
                 }
             }
-            //Affiche le resulat de l'inversion
+            // Affiche le resulat de l'inversion
             noeud_a_inverser.clear();
+        }
+    }
+
+    /*
+     * Verifie si le noeud a gagné
+     */
+    private void checkWin() {
+        if (this.incoming.isEmpty() && this.outgoing.isEmpty()) {
+            this.isActive = false;
+            //afficher qui a gagé
+            System.out.println("le noeud " + id + " a gagné");
         }
     }
 
@@ -171,13 +180,13 @@ public class AgentYoyo {
     public void phase_yo_down() throws IOException {
         phase = "down";
 
-        //TracePhase
+        // TracePhase
         tracer.log();
         this.tracePhase.update(this.phase.toLowerCase(Locale.ROOT));
         tracer.log();
 
         if (this.state == StateNode.SOURCE) {
-            diffuseId(this.outgoing, this.id, this.prune);
+            diffuseId(this.outgoing, this.id, "false");
             tracer.log("DownSource", new Object[]{Integer.parseInt(id)});
 
         } else {
@@ -186,13 +195,13 @@ public class AgentYoyo {
                 // Attendre que tous les messages soient reçus avant de transferer le min actuel
                 attendreMessage();
             }
-            diffuseId(this.outgoing, curentMin, this.prune);
-            //tracing
+            diffuseId(this.outgoing, curentMin, "false");
+            // tracing
             tracer.log("DownOther", new Object[]{Integer.parseInt(id)});
 
         }
 
-        //mise à jour variable pour la seconde ronde
+        // mise à jour variable pour la seconde ronde
         receivedAll_Incoming = false;
     }
 
@@ -207,58 +216,65 @@ public class AgentYoyo {
         phase = "up";
         tracer.log();
 
+
         this.tracePhase.update(this.phase.toLowerCase(Locale.ROOT));
         tracer.log();
-        //cas ou le noeud actuel est un puit
+        // cas ou le noeud actuel est un puit
         if (this.state == StateNode.PUITS) {
-            //on envoie YES au incoming ayant envoyé val min
-            diffuseResponse(this.parentsWithMinValue, TypeMessage.YES.toString(), this.prune);
 
-            //on cree la liste des gens qui ont envoyé No
-            HashSet<String> noParent = new HashSet<>();
-            for (String agent : this.incoming) {
-                if (!this.parentsWithMinValue.contains(agent)) {
-                    noParent.add(agent);
-                }
-            }
-            //On envoie NO au reste
-            diffuseResponse(noParent, TypeMessage.NO.toString(), this.prune);
-            noParent.clear();
-            inverse_node();
-
-            //tracing
-            tracer.log("UpOther", new Object[]{Integer.parseInt(id)});
-
-        }
-
-        //cas où nous sommes dans un noued interne
-        if (this.state == StateNode.INTERNE) {
-            //on attend qu'ils recoit les messages de ses outgoing
-            while (!receivedAll_Outgoing) {
-                attendreMessage();
-            }
-
-            //si on recoit un No des outgoing, on le proapage dans les incoming
-            if (this.receiveNo) {
-                diffuseResponse(this.incoming, TypeMessage.NO.toString(), this.prune);
-                noeud_a_inverser.addAll(incoming);
+            // on envoie YES au incoming ayant envoyé val min
+            if (incoming.size() == 1) {
+                //Un puits avec un seul voisin entrant répond par un message où couper est vrai
+                this.isActive = false; // le noued est inactif et ne participe plus au consensus
+                diffuseResponse(this.incoming, TypeMessage.YES.toString(), "true");
             } else {
+                diffuseResponse(this.parentsWithMinValue, TypeMessage.YES.toString(), "false");
 
-                //sinon on propage yes entrant ayant envoyé la val min
-                diffuseResponse(this.parentsWithMinValue, TypeMessage.YES.toString(), this.prune);
-
-                //on envoie NO au reste
+                // on cree la liste des gens qui ont envoyé No
                 HashSet<String> noParent = new HashSet<>();
                 for (String agent : this.incoming) {
                     if (!this.parentsWithMinValue.contains(agent)) {
                         noParent.add(agent);
                     }
                 }
-                diffuseResponse(noParent, TypeMessage.NO.toString(), this.prune);
+                // On envoie NO au reste
+                diffuseResponse(noParent, TypeMessage.NO.toString(), "false ");
+                noParent.clear();
+                inverse_node();
+                // tracing
+                tracer.log("UpOther", new Object[]{Integer.parseInt(id)});
+            }
+        }
+
+        // cas où nous sommes dans un noued interne
+        if (this.state == StateNode.INTERNE) {
+
+
+            // on attend qu'ils recoit les messages de ses outgoing
+            while (!receivedAll_Outgoing) {
+                attendreMessage();
+            }
+
+            if (this.receiveNo) {
+                diffuseResponse(this.incoming, TypeMessage.NO.toString(), "false");
+                noeud_a_inverser.addAll(incoming);
+            } else {
+
+                //sinon on propage yes entrant ayant envoyé la val min
+                diffuseResponse(this.parentsWithMinValue, TypeMessage.YES.toString(), "false");
+
+                // on envoie NO au reste
+                HashSet<String> noParent = new HashSet<>();
+                for (String agent : this.incoming) {
+                    if (!this.parentsWithMinValue.contains(agent)) {
+                        noParent.add(agent);
+                    }
+                }
+                diffuseResponse(noParent, TypeMessage.NO.toString(), "false");
                 noParent.clear();
             }
             inverse_node();
-            //tracing
+            // tracing
             tracer.log("UpOther", new Object[]{Integer.parseInt(id)});
         }
 
@@ -267,15 +283,10 @@ public class AgentYoyo {
                 attendreMessage();
             }
             inverse_node();
-            //Tracing
+            // Tracing
             tracer.log("UpSource", new Object[]{Integer.parseInt(id)});
         }
 
-        //parents ayant valeur min
-        parentsWithMinValue.clear();
-
-        //apres avoir tout envoyé, on remet à false
-        this.receiveNo = false;
         receivedAll_Outgoing = false;
     }
 
@@ -284,24 +295,34 @@ public class AgentYoyo {
      * ou jusqu'à ce qu'un nombre maximal d'itérations soit atteint.
      */
     public void run() {
-        mise_a_jour_state();
+        updateNodeState();
         // transform incoming into list of integers
-        List<Integer> incoming = this.incoming.stream().map(Integer::parseInt).toList();
-        traceInGoing.addAll(incoming);
+        List<Integer> incomingTrace = this.incoming.stream().map(Integer::parseInt).toList();
+        traceInGoing.addAll(incomingTrace);
 
         // transform outgoing into list of integers
-        List<Integer> outgoing = this.outgoing.stream().map(Integer::parseInt).toList();
-        traceOutGoing.addAll(outgoing);
+        List<Integer> outgoingTrace = this.outgoing.stream().map(Integer::parseInt).toList();
+        traceOutGoing.addAll(outgoingTrace);
 
         while (nbIterationMax > 0 && isActive) {
             try {
 
-                //System.out.println("je suis le noeud " + id + " et mes incoming sont " + this.incoming + " et mes outgoing sont " + this.outgoing);
+                //affiche le noeud, son etat, sa valeur mini et ses incoming et outgoing
+                System.out.println("je suis le noeud " + id + " , je suis " + state + " , ma valeur min est " + curentMin + " et mes incoming sont" + this.incoming + " et mes outgoing sont" + this.outgoing);
+
+                // en debut de ronde, le curentMin est l'id du noeud
+                curentMin = id;
 
                 phase_yo_down();
                 phase_yo_up();
-                mise_a_jour_state();
+                updateNodeState();
+                checkWin();
+
+                parentsWithMinValue.clear();
+                this.receiveNo = false;
+
                 System.out.println();
+
 
             } catch (IOException e) {
                 throw new RuntimeException(e);
@@ -309,9 +330,14 @@ public class AgentYoyo {
             nbIterationMax--;
 
         }
-        //System.out.println("je suis le noeud " + id + " , j'ai fini et mes incoming sont " + this.incoming + " et mes outgoing sont " + this.outgoing);
+        System.out.println("je suis le noeud " + id + " , j'ai fini et mes incoming sont" + this.incoming + " et mes outgoing sont" + this.outgoing);
 
-
+        //on attend 500ms pour que les messages soient bien envoyé et recu par les autres noeuds
+        try {
+            Thread.sleep(500);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
     /**
@@ -344,7 +370,7 @@ public class AgentYoyo {
      */
     public void diffuseId(Set<String> destinataire, String idADiffuser, String prune) throws IOException {
         for (String agent : destinataire) {
-            //transfere son id à chaque agent dans ses outgoing
+            // transfere son id à chaque agent dans ses outgoing
             networkManager.send(new Message(this.id, agent, TypeMessage.ID.toString(), this.phase, idADiffuser, prune, time.getNextTime()));
         }
         tracer.log();
@@ -384,20 +410,20 @@ public class AgentYoyo {
      */
     private void handleMessage(Message message) throws IOException {
 
-        //Verifie si le message nous appartient
+        // Verifie si le message nous appartient
         if (message != null && message.getTo().equals(id)) {
 
             if (message.getPhase().equals(this.phase)) {
 
                 System.out.println("\u001B[32m   Message received: " + message + "\u001B[0m");
 
-                //cas ou on recoit un ID
+                // cas ou on recoit un ID
                 if (message.getType().equals(TypeMessage.ID.toString())) {
                     //si on a le meme id, on le rajoute dans l'ensemble des parents ayant la valeur min
                     if (Integer.parseInt(message.getContent()) == Integer.parseInt(curentMin)) {
                         parentsWithMinValue.add(message.getFrom());
                     }
-                    //si la valeur recu est plus petite, on efface la liste et on le rajoute
+                    // si la valeur recu est plus petite, on efface la liste et on le rajoute
                     if (Integer.parseInt(message.getContent()) < Integer.parseInt(curentMin)) {
                         parentsWithMinValue.clear();
                         parentsWithMinValue.add(message.getFrom());
@@ -409,36 +435,46 @@ public class AgentYoyo {
                         this.receivedAll_Incoming = true;
                     }
                 }
-                //cas ou on recoit un YES
+                // cas ou on recoit un YES
                 if (message.getType().equals(TypeMessage.YES.toString())) {
                     outgoingMessageCounter++;
-                    //on a recu tout les reponses des voisins outgoing
-                    if (outgoingMessageCounter == outgoing.size()) {
-                        outgoingMessageCounter = 0;
-                        receivedAll_Outgoing = true;
-                    }
                 }
-                //cas ou on recoit un NO
-                if (message.getType().equals(TypeMessage.NO.toString())) {
 
-                    //on le stocke
+                // cas ou on recoit un NO
+                if (message.getType().equals(TypeMessage.NO.toString())) {
+                    outgoingMessageCounter++;
+                    // on ajoute le noeud à inverser
                     noeud_a_inverser.add(message.getFrom());
                     this.receiveNo = true;
-                    outgoingMessageCounter++;
                 }
+
+                //rajoute le nœud s'il est pruné
+                if (message.isPrune()) {
+                    //affiche quel noeud a recu quel noeud a puné
+                    System.out.println("le noeud " + id + " a recu le noeud " + message.getFrom() + " a pruné");
+                    nodeToPrune.add(message.getFrom());
+                }
+
                 // Vérifier si on a reçu tous les messages outgoing
                 if (outgoingMessageCounter == outgoing.size()) {
+                    //pritn les noued qui vont etre pruné
+                    if (!nodeToPrune.isEmpty()) {
+                        System.out.println("les noeuds a pruner sont " + nodeToPrune + " par le noeud " + id);
+                        //retire tout les noeud a pruner des outgoing
+                        for (String node : nodeToPrune) {
+                            this.outgoing.remove(node);
+                        }
+                        nodeToPrune.clear();
+                    }
                     outgoingMessageCounter = 0;
                     receivedAll_Outgoing = true;
                 }
 
             } else {
-
-                //si c'est c'est un message en avance on le stocke le pour la ronde suivante
+                // si c'est c'est un message en avance on le stocke le pour la ronde suivante
                 System.out.println("message en avance capture --> " + message + " alors que je suis en " + this.phase + " " + incoming + " " + outgoing);
                 networkManager.send(message);
             }
         }
     }
 }
-
