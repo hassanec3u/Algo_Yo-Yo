@@ -25,22 +25,13 @@ public class Client {
             return;
         }
 
-        // Get hostname, port,
         final String hostname = args[0];
         final int port = Integer.parseInt(args[1]);
         final String agentId = args[2];
         final String[] entrants = conversionEnString(args[3]);
         final String[] sortants = conversionEnString(args[4]);
 
-
-        //final int duration = Integer.parseInt(args[args.length - 1]);
-        // final JsonObject jsonConfig = ConfigurationManager.read("twophase.ndjson.conf");
-        // System.out.println(jsonConfig);
-        // final Configuration config = new Configuration(jsonConfig);
-
         try (Socket socket = new Socket(hostname, port)) {
-            //  TLATracer spec = TLATracer.getTracer(managerName + ".ndjson",
-            //  ClockFactory.getClock(ClockFactory.FILE, "twophase.clock"));
 
             NetworkManager networkManager = new NetworkManager(socket);
             final AgentYoyo agent;
@@ -48,7 +39,6 @@ public class Client {
                     ClockFactory.getClock(ClockFactory.FILE,"yoyo.clock"));
 
             // Création de l'agent avec ses voisins. Ici, on doit transformer les IDs des voisins en véritables objets Agent.
-            // Exemple simplifié sans la transformation réelle des voisins
              agent = new AgentYoyo(networkManager, agentId, new HashSet<>(), new HashSet<>(),spec);
 
             for (String entrant : entrants){
@@ -60,7 +50,6 @@ public class Client {
             }
 
             agent.run();
-
 
             // Send bye to server (kill the server thread)
             networkManager.sendRaw("bye");
